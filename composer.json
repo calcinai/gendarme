@@ -1,0 +1,14 @@
+{
+  "name": "calcinai/strut",
+  "description": "Library for creating and manipulating Swagger schemas",
+
+  "require": {
+    "phindmarsh/statham": "^1.0",
+    "symfony/console": "^3.1"
+  },
+
+  "autoload": {
+    "psr-4": { "Calcinai\\Gendarme\\": "src/" }
+  }
+
+}
