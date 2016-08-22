@@ -6,27 +6,16 @@
 
 namespace Calcinai\Gendarme;
 
-use Calcinai\Gendarme\Schema\Resolver;
-
 class Schema {
 
-    /**
-     * @var Resolver
-     */
-    private $resolver;
+    private $name;
+    private $schemas = [];
 
-    public function __construct(Resolver $resolver){
-
-        $this->resolver = $resolver;
+    public function __construct($name){
+        $this->name = $name;
     }
 
-
-    public function parse($schema){
-
-        print_r( $this->resolver->getSchema($schema) );
-        print_r( $this->resolver->getSchema('#') );
-
-
-
+    public function addSchema($schema) {
+        $this->schemas[] = $schema;
     }
 }
