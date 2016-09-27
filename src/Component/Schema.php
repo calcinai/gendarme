@@ -8,10 +8,21 @@ namespace Calcinai\Gendarme\Component;
 
 class Schema {
 
-    public $name;
+    public $id;
+    public $properties;
+    public $pattern_properties;
 
-    public function __construct($name){
-        $this->name = $name;
+    public function __construct($id){
+        $this->id = $id;
+    }
+
+    public function addProperty($property_name, Property $property) {
+        $this->properties[$property_name] = $property;
+    }
+
+    public function addPatternProperty($property_name, $property) {
+        $this->pattern_properties[$property_name] = $property;
+
     }
 
 }

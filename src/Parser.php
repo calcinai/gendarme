@@ -26,58 +26,108 @@ class Parser {
         $this->json_schema = new SchemaStorage();
         $this->json_schema->addSchema($this->json_schema_path);
 
-        //        return $this->json_schema->resolveRef(sprintf('%s%s', $this->json_schema_path, $ref));
 
-        $this->parseSchema(sprintf('%s#', $this->json_schema_path));
+        $root_schema_id = sprintf('%s#', $this->json_schema_path);
+        $root_schema = $this->json_schema->resolveRef($root_schema_id);
+
+        $root_property = $this->parseSchema($root_schema_id, $root_schema);
+
+        print_r($this->schemas);
 
     }
 
 
-    public function parseSchema($schema_id){
+    /**
+     * @param $schema_id
+     * @param $schema
+     *
+     * @return Property
+     * I think everything should boil down to a property... maybe.
+     */
+    public function parseSchema($schema_id, $schema){
 
-        if($this->getSchema($schema_id) !== null){
-            return;
+        if(!isset($schema->type)){
+            //Generic property
+            return new Property();
         }
 
-
-        $schema = new Schema($schema_id);
-
-        switch($this->json_schema->resolveRef($schema_id)->type){
+        switch($schema->type){
             case 'boolean':
             case 'integer':
             case 'null':
             case 'number':
             case 'string':
-                $schema->addProperty(new Property())
-                break;
+                //Scalar property
+                return new Property();
             case 'array':
-                break;
+
+                //Array property
+                return new Property();
             case 'object':
-                print_r($this->json_schema->resolveRef($schema_id)->properties);
-                break;
+
+                if($this->getSchema($schema_id) !== null){
+                    //Already processes - recursion stop
+                    return null;
+                }
+
+                if(isset($schema->properties)){
+                    $child_schema = new Schema($schema_id);
+                    $this->addSchema($schema_id, $child_schema);
+
+                    foreach($schema->properties as $property_name => $property){
+
+                        $property_schema_id = sprintf('%s/properties/%s', $schema_id, $property_name);
+
+                        if(isset($property->{'$ref'})){
+                            $property_schema_id = $property->{'$ref'};
+                        }
+
+                        $property = $this->parseSchema($property_schema_id, $this->json_schema->resolveRef($property_schema_id));
+
+                        if($property === null){
+                            //This will happen if it's been processed or is not valid
+                            continue;
+                        }
+
+                        $child_schema->addProperty($property_name, $property);
+                    }
+
+                }
+
+                if(isset($schema->patternProperties)){
+                    $child_schema = new Schema($schema_id);
+                    $this->addSchema($schema_id, $child_schema);
+
+                    foreach($schema->patternProperties as $property_name => $property){
+
+                        $property_schema_id = sprintf('%s/patternProperties/%s', $schema_id, $property_name);
+
+                        if(isset($property->{'$ref'})){
+                            $property_schema_id = $property->{'$ref'};
+                        }
+                        var_dump($property_schema_id);
+
+                        $property = $this->parseSchema($property_schema_id, $this->json_schema->resolveRef($property_schema_id));
+
+                        var_dump('efwf');
+                        if($property === null){
+                            //This will happen if it's been processed or is not valid
+                            continue;
+                        }
+
+                        $child_schema->addPatternProperty($property_name, $property);
+                    }
+
+                }
+
+                //Object property
+                return new Property();
 
         }
 
 
 
 
-
-
-
-
-
-
-
-        try {
-            $properties = $this->json_schema->resolveRef(sprintf('%s/properties', $schema_id));
-
-            print_r($properties);
-
-            //process properties
-
-        } catch (UnresolvableJsonPointerException $e){
-            //Fall through
-        }
 
 
 
@@ -98,7 +148,7 @@ class Parser {
 
 
 
-        $this->addSchema($schema_id, $schema);
+        //$this->addSchema($schema_id, $schema);
 
 //        $schema = new Schema($node_ref);
 //        $this->schemas[] = $schema;
@@ -124,6 +174,7 @@ class Parser {
 
 
     public function getSchema($schema_id){
+
         if(isset($this->schemas[$schema_id])){
             return $this->schemas[$schema_id];
         }
@@ -133,7 +184,7 @@ class Parser {
 
 
     public function addSchema($schema_id, Schema $schema){
-        $this->schemas[$schema_id] = $schema;
+        $this->schemas[$schema_id] = &$schema;
         return $this;
     }
 
