@@ -4,18 +4,14 @@
  * @author     Michael Calcinai <michael@calcin.ai>
  */
 
-namespace Calcinai\Gendarme;
+namespace Calcinai\Gendarme\Component;
 
 class Schema {
 
-    private $name;
-    private $schemas = [];
+    public $name;
 
     public function __construct($name){
         $this->name = $name;
     }
 
-    public function addSchema($schema) {
-        $this->schemas[] = $schema;
-    }
 }
