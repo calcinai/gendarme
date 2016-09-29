@@ -63,9 +63,19 @@ class Schema {
     public $allof = [];
 
 
+    /**
+     * @var Schema[]
+     */
     public $properties = [];
 
+    /**
+     * @var Schema[]
+     */
     public $pattern_properties = [];
+
+
+    private $class_name;
+    private $namespace;
 
     public function __construct($id){
         $this->id = $id;
@@ -156,6 +166,23 @@ class Schema {
 
 
     public function getClassName(){
+        if(!isset($this->class_name)){
+            $this->buildClassAndNS();
+        }
+
+        return $this->class_name;
+    }
+
+    public function getNamespace(){
+        if(!isset($this->namespace)){
+            $this->buildClassAndNS();
+        }
+
+        return $this->namespace;
+    }
+
+
+    private function buildClassAndNS(){
 
         /** @noinspection PhpUnusedLocalVariableInspection */
         list($path, $fragment) = explode('#', $this->id, 2);
@@ -164,13 +191,13 @@ class Schema {
         //echo $path;
 
         $inflector = Inflector::get();
-        $class = $inflector->camelize($inflector->underscore($fragment));
+        $full_class = $inflector->singularize($inflector->camelize($inflector->underscore($fragment)));
 
-        if($this->type === self::TYPE_ARRAY){
-            $class = $inflector->singularize($class);
-        }
+        $last_slash = strrpos($full_class, '\\');
 
-        return $class;
+        $this->class_name = ltrim(substr($full_class, $last_slash), '\\');
+        $this->namespace = trim(substr($full_class, 0, $last_slash), '\\');
+
     }
 
 
@@ -183,15 +210,21 @@ class Schema {
         }
 
         foreach($this->anyof as $item) {
-            $classes[] = $item->getClassName();
+            if(!in_array($item->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])) {
+                $classes[] = $item->getClassName();
+            }
         }
 
         foreach($this->allof as $item) {
-            $classes[] = $item->getClassName();
+            if(!in_array($item->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])) {
+                $classes[] = $item->getClassName();
+            }
         }
 
         foreach($this->oneof as $item) {
-            $classes[] = $item->getClassName();
+            if(!in_array($item->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])) {
+                $classes[] = $item->getClassName();
+            }
         }
 
         if(empty($classes)){

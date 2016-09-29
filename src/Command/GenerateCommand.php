@@ -6,6 +6,7 @@
  */
 namespace Calcinai\Gendarme\Command;
 
+use Calcinai\Gendarme\Generator;
 use Calcinai\Gendarme\Parser;
 use Calcinai\Gendarme\Schema;
 use Symfony\Component\Console\Command\Command;
@@ -57,13 +58,7 @@ class GenerateCommand extends Command {
         $parser->parse();
 
 
-        foreach($parser->getSchemas() as $schema){
-            if(!in_array($schema->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])){
-                continue;
-            }
-
-            print_r($schema->getHintableClasses());
-        }
+        $generator = new Generator($input->getOption('namespace'), $parser->getSchemas());
 
 
     }
