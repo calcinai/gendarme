@@ -5,7 +5,8 @@
   "require": {
     "symfony/console": "^3.1",
     "justinrainbow/json-schema": "^3.0",
-    "nikic/php-parser": "^2.1"
+    "nikic/php-parser": "^2.1",
+    "icanboogie/inflector": "^1.4"
   },
 
   "autoload": {

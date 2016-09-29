@@ -7,186 +7,181 @@
 
 namespace Calcinai\Gendarme;
 
-use Calcinai\Gendarme\Component\Property;
-use Calcinai\Gendarme\Component\Schema;
-use JsonSchema\Exception\UnresolvableJsonPointerException;
+use Calcinai\Gendarme\Keyword;
 use JsonSchema\SchemaStorage;
 
 class Parser {
 
     private $json_schema_path;
-    private $json_schema;
+    private $schema_stroage;
 
     private $schemas = [];
+    private $schema_aliases = [];
 
     public function __construct($schema_file) {
 
         $this->json_schema_path = sprintf('file://%s', realpath($schema_file));
 
-        $this->json_schema = new SchemaStorage();
-        $this->json_schema->addSchema($this->json_schema_path);
-
-
-        $root_schema_id = sprintf('%s#', $this->json_schema_path);
-        $root_schema = $this->json_schema->resolveRef($root_schema_id);
-
-        $root_property = $this->parseSchema($root_schema_id, $root_schema);
-
-        print_r($this->schemas);
+        $this->schema_stroage = new SchemaStorage();
+        $this->schema_stroage->addSchema($this->json_schema_path);
 
     }
 
+
+    public function parse(){
+
+        $root_schema_id = sprintf('%s#', $this->json_schema_path);
+        $root_schema = $this->schema_stroage->resolveRef($root_schema_id);
+
+        $this->parseNode($root_schema_id, $root_schema);
+    }
+
+
+    public function parseNode($json_schema_id, $json_schema){
+
+        if(isset($json_schema->{'$ref'})){
+            $this->addSchemaAlias($json_schema_id, $json_schema->{'$ref'});
+
+            $json_schema_id = $json_schema->{'$ref'};
+            $json_schema = $this->schema_stroage->resolveRef($json_schema_id);
+        }
+
+        $schema = $this->getSchema($json_schema_id);
+
+        //More of these need implementing
+        //Could probably be dynamic too.
+        foreach($json_schema as $keyword => $node){
+
+            switch($keyword){
+                case 'id':
+                    break;
+                case '$schema':
+                    break;
+                case 'title':
+                    break;
+                case 'description':
+                    Keyword\Description::parse($this, $schema, $node);
+                    break;
+                case 'default':
+                    Keyword\Default_::parse($this, $schema, $node);
+                    break;
+                case 'multipleOf':
+                    break;
+                case 'maximum':
+                    break;
+                case 'exclusiveMaximum':
+                    break;
+                case 'minimum':
+                    break;
+                case 'exclusiveMinimum':
+                    break;
+                case 'maxLength':
+                    break;
+                case 'minLength':
+                    break;
+                case 'pattern':
+                    break;
+                case 'additionalItems':
+                    break;
+                case 'items':
+                    Keyword\Items::parse($this, $schema, $node);
+                    break;
+                case 'maxItems':
+                    break;
+                case 'minItems':
+                    break;
+                case 'uniqueItems':
+                    break;
+                case 'maxProperties':
+                    break;
+                case 'minProperties':
+                    break;
+                case 'required':
+                    break;
+                case 'additionalProperties':
+                    break;
+                case 'definitions':
+                    break;
+                case 'properties':
+                    Keyword\Properties::parse($this, $schema, $node);
+                    break;
+                case 'patternProperties':
+                    Keyword\PatternProperties::parse($this, $schema, $node);
+                    break;
+                case 'dependencies':
+                    break;
+                case 'enum':
+                    Keyword\Enum::parse($this, $schema, $node);
+                    break;
+                case 'type':
+                    Keyword\Type::parse($this, $schema, $node);
+                    break;
+                case 'allOf':
+                    Keyword\AllOf::parse($this, $schema, $node);
+                    break;
+                case 'anyOf':
+                    Keyword\AnyOf::parse($this, $schema, $node);
+                    break;
+                case 'oneOf':
+                    Keyword\OneOf::parse($this, $schema, $node);
+                    break;
+                case 'not':
+                    break;
+            }
+
+        }
+
+    }
+
+
+    public function hasSchema($schema_id){
+        $schema_id = $this->getRealSchemaID($schema_id);
+
+        return isset($this->schemas[$schema_id]);
+    }
 
     /**
      * @param $schema_id
-     * @param $schema
-     *
-     * @return Property
-     * I think everything should boil down to a property... maybe.
+     * @return Schema
      */
-    public function parseSchema($schema_id, $schema){
-
-        if(!isset($schema->type)){
-            //Generic property
-            return new Property();
-        }
-
-        switch($schema->type){
-            case 'boolean':
-            case 'integer':
-            case 'null':
-            case 'number':
-            case 'string':
-                //Scalar property
-                return new Property();
-            case 'array':
-
-                //Array property
-                return new Property();
-            case 'object':
-
-                if($this->getSchema($schema_id) !== null){
-                    //Already processes - recursion stop
-                    return null;
-                }
-
-                if(isset($schema->properties)){
-                    $child_schema = new Schema($schema_id);
-                    $this->addSchema($schema_id, $child_schema);
-
-                    foreach($schema->properties as $property_name => $property){
-
-                        $property_schema_id = sprintf('%s/properties/%s', $schema_id, $property_name);
-
-                        if(isset($property->{'$ref'})){
-                            $property_schema_id = $property->{'$ref'};
-                        }
-
-                        $property = $this->parseSchema($property_schema_id, $this->json_schema->resolveRef($property_schema_id));
-
-                        if($property === null){
-                            //This will happen if it's been processed or is not valid
-                            continue;
-                        }
-
-                        $child_schema->addProperty($property_name, $property);
-                    }
-
-                }
-
-                if(isset($schema->patternProperties)){
-                    $child_schema = new Schema($schema_id);
-                    $this->addSchema($schema_id, $child_schema);
-
-                    foreach($schema->patternProperties as $property_name => $property){
-
-                        $property_schema_id = sprintf('%s/patternProperties/%s', $schema_id, $property_name);
-
-                        if(isset($property->{'$ref'})){
-                            $property_schema_id = $property->{'$ref'};
-                        }
-                        var_dump($property_schema_id);
-
-                        $property = $this->parseSchema($property_schema_id, $this->json_schema->resolveRef($property_schema_id));
-
-                        var_dump('efwf');
-                        if($property === null){
-                            //This will happen if it's been processed or is not valid
-                            continue;
-                        }
-
-                        $child_schema->addPatternProperty($property_name, $property);
-                    }
-
-                }
-
-                //Object property
-                return new Property();
-
-        }
-
-
-
-
-
-
-
-        //process unreferenced definitions
-//        try {
-//            $definitions = $this->json_schema->resolveRef(sprintf('%s/definitions', $schema_id));
-//
-//            foreach($definitions as $definition_name => $definition){
-//                $definition_id = sprintf('%s/%s', $schema_id, $definition_name);
-//                $this->parseSchema($definition_id);
-//            }
-//
-//            //process definitions
-//
-//        } catch (UnresolvableJsonPointerException $e){
-//            //Fall through
-//        }
-
-
-
-        //$this->addSchema($schema_id, $schema);
-
-//        $schema = new Schema($node_ref);
-//        $this->schemas[] = $schema;
-//
-//        if(isset($node->{'$ref'}) && !isset($this->schemas[$node->{'$ref'}])){
-//            //It's a ref that hasn't been parsed
-//            $node = $this->resolveRef($node->{'$ref'});
-//        }
-//
-//        foreach($node as $property_name => $property){
-//            var_dump($property_name);
-//        }
-        //print_r($node->properties->info);
-//        if(is_scalar($node)){
-//            return;
-//        }
-//
-//        foreach($node as $child_node_name => $child_node){
-//            $this->parseNode($child_node_name, $child_node);
-//        }
-    }
-
-
-
     public function getSchema($schema_id){
 
-        if(isset($this->schemas[$schema_id])){
-            return $this->schemas[$schema_id];
+        $schema_id = $this->getRealSchemaID($schema_id);
+
+        if(!isset($this->schemas[$schema_id])){
+            $this->schemas[$schema_id] = new Schema($schema_id);
         }
 
-        return null;
+        return $this->schemas[$schema_id];
     }
 
-
-    public function addSchema($schema_id, Schema $schema){
-        $this->schemas[$schema_id] = &$schema;
+    /**
+     * @param Schema $schema
+     * @return $this
+     */
+    public function addSchema(Schema $schema){
+        $this->schemas[$schema->id] = &$schema;
         return $this;
     }
 
+    /**
+     * @return Schema[]
+     */
+    public function getSchemas() {
+        return $this->schemas;
+    }
+
+    private function addSchemaAlias($json_schema_id, $real_schema_id) {
+        $this->schema_aliases[$json_schema_id] = $real_schema_id;
+    }
+
+
+    public function getRealSchemaID($json_schema_id){
+        if(isset($this->schema_aliases[$json_schema_id])){
+            return $this->schema_aliases[$json_schema_id];
+        }
+
+        return $json_schema_id;
+    }
 
 }

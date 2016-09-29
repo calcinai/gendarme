@@ -7,7 +7,7 @@
 namespace Calcinai\Gendarme\Command;
 
 use Calcinai\Gendarme\Parser;
-use JsonSchema\SchemaStorage;
+use Calcinai\Gendarme\Schema;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\InputArgument;
@@ -54,6 +54,17 @@ class GenerateCommand extends Command {
         }
 
         $parser = new Parser($schema_file);
+        $parser->parse();
+
+
+        foreach($parser->getSchemas() as $schema){
+            if(!in_array($schema->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])){
+                continue;
+            }
+
+            print_r($schema->getHintableClasses());
+        }
+
 
     }
 }
