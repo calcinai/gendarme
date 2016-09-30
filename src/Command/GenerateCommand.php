@@ -9,6 +9,8 @@ namespace Calcinai\Gendarme\Command;
 use Calcinai\Gendarme\Generator;
 use Calcinai\Gendarme\Parser;
 use Calcinai\Gendarme\Schema;
+use PhpParser\Error;
+use PhpParser\ParserFactory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\InputArgument;
@@ -36,13 +38,34 @@ class GenerateCommand extends Command {
                 'namespace',
                 null,
                 InputOption::VALUE_OPTIONAL,
-                'The Base namespace for generated classes',
+                'The base namespace for generated classes',
                 ''
+            )
+            ->addOption(
+                'root-class',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'The name of the root generated schema',
+                'Schema'
             )
         ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output){
+
+//        $code = '<?php static ';
+//        $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);
+//
+//        try {
+//            $stmts = $parser->parse($code);
+//            print_r($stmts);
+//        } catch (Error $e) {
+//            echo 'Parse Error: ', $e->getMessage();
+//        }
+//
+//
+//        exit;
+
         $schema_file = $input->getArgument('schema');
         $output_dir = $input->getArgument('output');
 
@@ -58,7 +81,7 @@ class GenerateCommand extends Command {
         $parser->parse();
 
 
-        $generator = new Generator($input->getOption('namespace'), $parser->getSchemas());
+        $generator = new Generator($input->getOption('namespace'), $input->getOption('root-class'), $parser->getSchemas());
 
 
     }

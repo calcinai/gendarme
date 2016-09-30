@@ -20,6 +20,10 @@ class Schema {
     const TYPE_STRING  = 'string';
 
 
+    public static $base_namespace = '';
+    public static $default_class = '';
+
+
     public $id;
 
     /**
@@ -31,6 +35,11 @@ class Schema {
      * @var string
      */
     public $description;
+
+    /**
+     * @var string
+     */
+    public $title;
 
     /**
      * @var []
@@ -81,7 +90,6 @@ class Schema {
         $this->id = $id;
     }
 
-
     public function addProperty($property_name, Schema $schema){
         $this->properties[$property_name] = $schema;
         return $this;
@@ -98,6 +106,15 @@ class Schema {
      */
     public function setDescription($description) {
         $this->description = $description;
+        return $this;
+    }
+
+    /**
+     * @param string $title
+     * @return Schema
+     */
+    public function setTitle($title) {
+        $this->title = $title;
         return $this;
     }
 
@@ -170,7 +187,7 @@ class Schema {
             $this->buildClassAndNS();
         }
 
-        return $this->class_name;
+        return empty($this->class_name) ? self::$default_class : $this->class_name;
     }
 
     public function getNamespace(){
@@ -178,11 +195,11 @@ class Schema {
             $this->buildClassAndNS();
         }
 
-        return $this->namespace;
+        return rtrim(sprintf('%s\\%s', self::$base_namespace, $this->namespace), '\\');
     }
 
 
-    private function buildClassAndNS(){
+    public function getRelativeClassName(){
 
         /** @noinspection PhpUnusedLocalVariableInspection */
         list($path, $fragment) = explode('#', $this->id, 2);
@@ -191,47 +208,106 @@ class Schema {
         //echo $path;
 
         $inflector = Inflector::get();
-        $full_class = $inflector->singularize($inflector->camelize($inflector->underscore($fragment)));
+        return $inflector->singularize($inflector->camelize($inflector->underscore(trim($fragment, '/'))));
+
+    }
+
+
+    private function buildClassAndNS(){
+
+        $full_class = $this->getRelativeClassName();
 
         $last_slash = strrpos($full_class, '\\');
 
-        $this->class_name = ltrim(substr($full_class, $last_slash), '\\');
-        $this->namespace = trim(substr($full_class, 0, $last_slash), '\\');
+        $this->class_name = substr($full_class, $last_slash +1);
+        $this->namespace = substr($full_class, 0, $last_slash);
 
     }
 
 
-    public function getHintableClasses(){
+    /**
+     * Used to get the actual type hints for generation.
+     *
+     * Currently ignores scalars, but can implement in future for PHP7
+     *
+     * @param bool $include_scalar
+     * @return array
+     */
+    public function getHintableClasses($include_scalar = false){
 
-        $classes = [];
+        $hints = [];
 
-        if($this->items instanceof Schema){
-            $classes[] = $this->items->getClassName();
+        if($this->items instanceof Schema && false){
+            $hints[] = $this->items->getRelativeClassName();
         }
 
         foreach($this->anyof as $item) {
-            if(!in_array($item->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])) {
-                $classes[] = $item->getClassName();
-            }
+            $hints += $this->getHintsFromSchema($item, $include_scalar);
         }
 
         foreach($this->allof as $item) {
-            if(!in_array($item->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])) {
-                $classes[] = $item->getClassName();
-            }
+            $hints += $this->getHintsFromSchema($item, $include_scalar);
         }
 
         foreach($this->oneof as $item) {
-            if(!in_array($item->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])) {
-                $classes[] = $item->getClassName();
+            $hints += $this->getHintsFromSchema($item, $include_scalar);
+        }
+
+        if(empty($hints)){
+            $hints += $this->getHintsFromSchema($this, $include_scalar);
+        }
+
+        return $hints;
+    }
+
+
+    /**
+     * @param Schema $item
+     * @param $include_scalar
+     * @return array
+     */
+    private function getHintsFromSchema(Schema $item, $include_scalar){
+
+        $hints = [];
+
+        if(in_array($item->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])) {
+            $hints[] = $item->getRelativeClassName();
+        } elseif($include_scalar){
+
+            switch($this->type){
+                case self::TYPE_BOOLEAN:
+                    $hints[] = 'bool';
+                    break;
+                case self::TYPE_NUMBER :
+                case self::TYPE_INTEGER:
+                    $hints[] = 'int';
+                    break;
+                    break;
+                case self::TYPE_STRING :
+                    $hints[] = 'string';
+                    break;
             }
         }
 
-        if(empty($classes)){
-            return [$this->getClassName()];
-        }
+        return $hints;
 
-        return $classes;
     }
+
+
+
+    /**
+     * @param string $default_class
+     */
+    public static function setDefaultClass($default_class) {
+        self::$default_class = $default_class;
+    }
+
+    /**
+     * @param string $base_namespace
+     */
+    public static function setBaseNamespace($base_namespace) {
+        self::$base_namespace = $base_namespace;
+    }
+
 
 }

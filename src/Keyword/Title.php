@@ -6,11 +6,10 @@
 
 namespace Calcinai\Gendarme\Keyword;
 
-
 use Calcinai\Gendarme\Schema;
 use Calcinai\Gendarme\Parser;
 
-class Default_ extends AbstractKeyword {
+class Title extends AbstractKeyword {
 
     /**
      * @param Parser $parser
@@ -19,11 +18,7 @@ class Default_ extends AbstractKeyword {
      * @return Schema
      */
     public static function parse(Parser $parser, Schema $schema, $node) {
-
-        if(!is_scalar($node)){
-            return;
-        }
-
-        $schema->setDefault($node);
+        $schema->setTitle($node);
+        return $schema;
     }
 }

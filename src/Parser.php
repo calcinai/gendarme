@@ -58,6 +58,7 @@ class Parser {
                 case '$schema':
                     break;
                 case 'title':
+                    Keyword\Title::parse($this, $schema, $node);
                     break;
                 case 'description':
                     Keyword\Description::parse($this, $schema, $node);
@@ -99,6 +100,7 @@ class Parser {
                 case 'required':
                     break;
                 case 'additionalProperties':
+                    Keyword\AdditionalProperties::parse($this, $schema, $node);
                     break;
                 case 'definitions':
                     break;
