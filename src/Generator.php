@@ -82,7 +82,7 @@ class Generator {
         $this->writeClass($this->base_schema_class, $base_schema_namespace);
 
         foreach($schemas as $schema){
-            if(!in_array($schema->type, [Schema::TYPE_ARRAY, Schema::TYPE_OBJECT])){
+            if($schema->type !== Schema::TYPE_OBJECT){
                 continue;
             }
 

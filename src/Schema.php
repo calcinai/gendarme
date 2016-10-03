@@ -307,7 +307,7 @@ class Schema {
 
         $hints = [];
 
-        if(in_array($item->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])) {
+        if($item->type === Schema::TYPE_OBJECT) {
             $hints[] = $item->getRelativeClassName();
         } elseif($include_scalar){
 
