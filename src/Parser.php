@@ -48,6 +48,7 @@ class Parser {
 
         $schema = $this->getSchema($json_schema_id);
 
+
         //More of these need implementing
         //Could probably be dynamic too.
         foreach($json_schema as $keyword => $node){

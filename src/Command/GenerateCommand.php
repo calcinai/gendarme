@@ -8,9 +8,6 @@ namespace Calcinai\Gendarme\Command;
 
 use Calcinai\Gendarme\Generator;
 use Calcinai\Gendarme\Parser;
-use Calcinai\Gendarme\Schema;
-use PhpParser\Error;
-use PhpParser\ParserFactory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\InputArgument;
@@ -53,19 +50,6 @@ class GenerateCommand extends Command {
 
     protected function execute(InputInterface $input, OutputInterface $output){
 
-//        $code = '<?php static ';
-//        $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);
-//
-//        try {
-//            $stmts = $parser->parse($code);
-//            print_r($stmts);
-//        } catch (Error $e) {
-//            echo 'Parse Error: ', $e->getMessage();
-//        }
-//
-//
-//        exit;
-
         $schema_file = $input->getArgument('schema');
         $output_dir = $input->getArgument('output');
 
@@ -77,11 +61,34 @@ class GenerateCommand extends Command {
             throw new InvalidArgumentException('Invalid output directory provided');
         }
 
+        $output_dir = realpath($output_dir);
+
         $parser = new Parser($schema_file);
         $parser->parse();
 
+//        foreach($parser->getSchemas() as $schema) {
+//
+//            if($schema->type !== Schema::TYPE_OBJECT){
+//                continue;
+//            }
+//
+//            printf("%s\n", $schema->id);
+//            foreach($schema->getProperties() as $property_name => $property){
+//                printf("  %s: %s\n", $property_name, $property->type);
+//            }
+//            foreach($schema->pattern_properties as $pattern => $property){
+//                printf("  %s: %s\n", $pattern, $property->type);
+//            }
+//
+//            if(isset($schema->items)){
+//                printf("  []: %s\n", $schema->items->type);
+//            }
+//        }
+//
+//        exit;
 
-        $generator = new Generator($input->getOption('namespace'), $input->getOption('root-class'), $parser->getSchemas());
+        $generator = new Generator($input->getOption('namespace'), $input->getOption('root-class'), $output_dir);
+        $generator->generateClasses($parser->getSchemas());
 
 
     }

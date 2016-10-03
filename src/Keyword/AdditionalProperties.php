@@ -19,21 +19,19 @@ class AdditionalProperties extends AbstractKeyword {
      */
     public static function parse(Parser $parser, Schema $schema, $node) {
 
+
+        if(is_bool($node)){
+            $schema->allow_additional_properties = $node;
+            return $schema;
+        }
+
         $property_schema_id = sprintf('%s/additionalProperties', $schema->id);
 
+        if(!$parser->hasSchema($property_schema_id)){
+            $parser->parseNode($property_schema_id, $node);
+        }
 
-//        foreach($node as $property_name => $property){
-//
-//            $property_schema_id = sprintf('%s/additionalProperties/%s', $schema->id, $property_name);
-//
-//            if(!$parser->hasSchema($property_schema_id)){
-//                $parser->parseNode($property_schema_id, $property);
-//            }
-//
-//            $schema->addProperty($property_name, $parser->getSchema($property_schema_id));
-//        }
-
-
+        $schema->setAdditionalProperties($parser->getSchema($property_schema_id));
 
         return $schema;
     }

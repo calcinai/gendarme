@@ -7,49 +7,112 @@
 namespace Calcinai\Gendarme;
 
 
+use Calcinai\Gendarme\Templates\BaseSchema;
 use ICanBoogie\Inflector;
 use PhpParser\BuilderFactory;
+use PhpParser\Node;
 use PhpParser\Node\Expr;
+use PhpParser\Node\Name;
+use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
+use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter\Standard;
 
 class Generator {
-
-    /**
-     * @var Schema[]
-     */
-    private $schemas;
 
     /**
      * @var string
      */
     private $base_namespace;
 
+
+    private $base_schema_class;
+
+
+    private $printer;
+    private $root_class_name;
+
+    private $output_dir;
+
     /**
      * Generator constructor.
      * @param $base_namespace
      * @param $root_class_name
-     * @param Schema[] $schemas
+     * @param $output_dir
      */
-    public function __construct($base_namespace, $root_class_name, $schemas) {
-        $this->schemas = $schemas;
+    public function __construct($base_namespace, $root_class_name, $output_dir) {
         $this->base_namespace = $base_namespace;
+        $this->root_class_name = $root_class_name;
+        $this->output_dir = $output_dir;
+
+        $this->printer = new Standard(['shortArraySyntax' => true]);
+
 
         Schema::setBaseNamespace($base_namespace);
         Schema::setDefaultClass($root_class_name);
 
+    }
+
+
+    /**
+     *
+     * @param Schema[] $schemas
+     */
+    public function generateClasses($schemas){
+
+        $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);
+
+        //Then process the base schema
+        $base_schema_rc = new \ReflectionClass(BaseSchema::class);
+        $base_schema_file = $parser->parse(file_get_contents($base_schema_rc->getFileName()));
+
+        $this->base_schema_class = $base_schema_rc->getShortName();
+
+        //Find the namespace node
+        foreach($base_schema_file as $base_schema_namespace){
+            if($base_schema_namespace instanceof Stmt\Namespace_){
+                break;
+            }
+        }
+
+        /** @noinspection PhpUndefinedVariableInspection - if it isn't, it's an internal error anyway since it'll mean the template class is broken */
+        $base_schema_namespace->name = new Name(explode('\\', $this->base_namespace));
+
+
+        $this->writeClass($this->base_schema_class, $base_schema_namespace);
+
         foreach($schemas as $schema){
-            if(!in_array($schema->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])){
+            if(!in_array($schema->type, [Schema::TYPE_ARRAY, Schema::TYPE_OBJECT])){
                 continue;
             }
 
-            $this->buildModel($schema);
+            $this->writeClass($schema->getRelativeClassName(), $this->buildModel($schema));
         }
+    }
+
+
+    private function writeClass($class_name, Node $node){
+
+        $filename = sprintf('%s%s%s.php', $this->output_dir, DIRECTORY_SEPARATOR, strtr($class_name, ['\\' => DIRECTORY_SEPARATOR]));
+        $file_info = pathinfo($filename);
+
+        if(!file_exists($file_info['dirname'])){
+            mkdir($file_info['dirname'], 0777, true);
+        }
+
+        $code = $this->printer->prettyPrintFile([$node]);
+
+        file_put_contents($filename, $code);
 
     }
 
 
-
+    /**
+     * Make the AST for a schema
+     *
+     * @param Schema $schema
+     * @return \PhpParser\Node
+     */
     private function buildModel(Schema $schema) {
 
         $inflector = Inflector::get();
@@ -57,15 +120,18 @@ class Generator {
 
         $used_class_roots = [];
 
-        $namespace = $factory->namespace($schema->getNamespace());
-        $class = $factory->class($schema->getClassName());
+        $namespace = $factory->namespace($schema->getNamespace())->addStmt(
+            $factory->use(sprintf('%s\\%s', $this->base_namespace, $this->base_schema_class))
+        );
+        $class = $factory->class($schema->getClassName())->extend($this->base_schema_class);
 
         if(!empty($schema->description)){
             $class->setDocComment($this->formatDocComment([$schema->description]));
         }
 
-        foreach($schema->properties as $property_name => $child_schema){
+        foreach($schema->getProperties() as $property_name => $child_schema){
 
+            //Create the setters/adders for the properties that are arrays
             if($child_schema->type === Schema::TYPE_ARRAY){
                 $method_name = sprintf('add%s', $inflector->singularize($inflector->camelize($property_name)));
                 $setter = $factory->method($method_name)->makePublic();
@@ -75,6 +141,7 @@ class Generator {
                         ),
                         new Expr\Variable($property_name))
                 );
+            //Create a simple setter (hinted if possible)
             } else {
                 $method_name = sprintf('set%s', $inflector->camelize($property_name));
                 $setter = $factory->method($method_name)->makePublic();
@@ -84,8 +151,9 @@ class Generator {
                 );
             }
 
+            //Makew the setters fluent
             $setter->addStmt(new Return_(new Expr\Variable('this')));
-            $property = $factory->property($property_name)->makePrivate();
+            $property = $factory->property($property_name)->makeProtected();
             $parameter = $factory->param($property_name);
 
             if(!empty($child_schema->default)){
@@ -110,7 +178,9 @@ class Generator {
                 $parameter_lines = [];
             }
 
-            $setter_lines[] = sprintf('@param %s %s',  implode('|', $child_schema->getHintableClasses(true)), $property_name);
+            $setter_lines[] = sprintf('@param %s $%s',  implode('|', $child_schema->getHintableClasses(true)), $property_name);
+            $setter_lines[] = '@return $this';
+
             $parameter_lines[] = sprintf('@var %s', implode('|', $child_schema->getHintableClasses(true)));
 
             $setter->setDocComment($this->formatDocComment($setter_lines));
@@ -131,9 +201,8 @@ class Generator {
         $class->addStmt($factory->property('pattern_properties')
             ->makeProtected()
             ->makeStatic()
-            ->setDefault($parsed_pattern_props));
-
-
+            ->setDefault($parsed_pattern_props)
+            ->setDocComment($this->formatDocComment(['Array to store any allowed pattern properties', '@var array'])));
 
 
 
@@ -141,18 +210,19 @@ class Generator {
             $namespace->addStmt($factory->use(sprintf('%s\\%s', $this->base_namespace, $class_root)));
         }
 
-        $node = $namespace->addStmt($class)->getNode();
-
-        $prettyPrinter = new Standard();
-        echo $prettyPrinter->prettyPrintFile([$node]);
-
+        return $namespace->addStmt($class)->getNode();
 
     }
 
 
+    /**
+     * Format an array into a doccomment
+     *
+     * @param $lines
+     * @return string
+     */
     public function formatDocComment($lines){
         return sprintf("\n/**\n * %s\n */", implode("\n * ", $lines));
     }
-
 
 }

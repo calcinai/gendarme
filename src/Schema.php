@@ -75,12 +75,22 @@ class Schema {
     /**
      * @var Schema[]
      */
-    public $properties = [];
+    private $properties = [];
 
     /**
      * @var Schema[]
      */
     public $pattern_properties = [];
+
+    /**
+     * @var Schema
+     */
+    public $additional_properties;
+
+    /**
+     * @var bool
+     */
+    public $allow_additional_properties = false;
 
 
     private $class_name;
@@ -98,6 +108,11 @@ class Schema {
     public function addPatternProperty($property_name, Schema $schema) {
         $this->pattern_properties[$property_name] = $schema;
         return $this;
+    }
+
+
+    public function setAdditionalProperties(Schema $schema) {
+        $this->additional_properties = $schema;
     }
 
     /**
@@ -187,7 +202,7 @@ class Schema {
             $this->buildClassAndNS();
         }
 
-        return empty($this->class_name) ? self::$default_class : $this->class_name;
+        return $this->class_name;
     }
 
     public function getNamespace(){
@@ -208,7 +223,10 @@ class Schema {
         //echo $path;
 
         $inflector = Inflector::get();
-        return $inflector->singularize($inflector->camelize($inflector->underscore(trim($fragment, '/'))));
+        $name = $inflector->singularize($inflector->camelize($inflector->underscore(trim($fragment, '/'))));
+
+        return empty($name) ? self::$default_class : $name;
+
 
     }
 
@@ -219,38 +237,57 @@ class Schema {
 
         $last_slash = strrpos($full_class, '\\');
 
-        $this->class_name = substr($full_class, $last_slash +1);
+        $this->class_name = ltrim(substr($full_class, $last_slash), '\\');
         $this->namespace = substr($full_class, 0, $last_slash);
 
     }
 
 
+
+    public function getProperties() {
+
+        foreach($this->properties as $property_name => $property){
+            yield $property_name => $property;
+        }
+
+        if(isset($this->additional_properties)){
+            //Would be nice.
+//            yield from $this->additional_properties->getProperties();
+            foreach($this->additional_properties->getProperties() as $property_name => $property){
+                yield $property_name => $property;
+            }
+        }
+    }
+
+
+
     /**
      * Used to get the actual type hints for generation.
      *
-     * Currently ignores scalars, but can implement in future for PHP7
+     * Currently ignores scalars, but can enable in future for PHP7
      *
      * @param bool $include_scalar
      * @return array
      */
     public function getHintableClasses($include_scalar = false){
 
+
         $hints = [];
 
         if($this->items instanceof Schema && false){
-            $hints[] = $this->items->getRelativeClassName();
+            $hints[] = $this->items->getHintableClasses($include_scalar);
         }
 
         foreach($this->anyof as $item) {
-            $hints += $this->getHintsFromSchema($item, $include_scalar);
+            $hints += $item->getHintableClasses($include_scalar);
         }
 
         foreach($this->allof as $item) {
-            $hints += $this->getHintsFromSchema($item, $include_scalar);
+            $hints += $item->getHintableClasses($include_scalar);
         }
 
         foreach($this->oneof as $item) {
-            $hints += $this->getHintsFromSchema($item, $include_scalar);
+            $hints += $item->getHintableClasses($include_scalar);
         }
 
         if(empty($hints)){
