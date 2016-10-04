@@ -6,7 +6,7 @@ A tool for creating PHP data structures from [JSON Schemas](http://json-schema.o
 
 via composer
 ```
-composer create-project calcinai/gendarme -s dev
+composer create-project calcinai/gendarme
 ```
 
 ## Usage
