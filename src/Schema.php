@@ -196,6 +196,13 @@ class Schema {
         return $this;
     }
 
+    /**
+     * @return mixed
+     */
+    public function getEnum() {
+        return $this->enum;
+    }
+
 
     public function getClassName(){
         if(!isset($this->class_name)){
@@ -223,7 +230,7 @@ class Schema {
         //echo $path;
 
         $inflector = Inflector::get();
-        $name = $inflector->singularize($inflector->camelize($inflector->underscore(trim($fragment, '/'))));
+        $name = $inflector->camelize($inflector->underscore(trim($fragment, '/')));
 
         return empty($name) ? self::$default_class : $name;
 

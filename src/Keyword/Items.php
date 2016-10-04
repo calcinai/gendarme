@@ -27,6 +27,9 @@ class Items extends AbstractKeyword {
 
         $schema->setItems($parser->getSchema($property_schema_id));
 
+        //If we encounter items, it implies it's an object.
+        $schema->setType(Schema::TYPE_ARRAY);
+
         return $schema;
     }
 }

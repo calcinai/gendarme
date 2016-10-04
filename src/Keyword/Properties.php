@@ -30,7 +30,8 @@ class Properties extends AbstractKeyword {
             $schema->addProperty($property_name, $parser->getSchema($property_schema_id));
         }
 
-
+        //If we encounter properties, it implies it's an object.
+        $schema->setType(Schema::TYPE_OBJECT);
 
         return $schema;
     }

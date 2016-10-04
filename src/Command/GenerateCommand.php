@@ -65,6 +65,9 @@ class GenerateCommand extends Command {
 
         $parser = new Parser($schema_file);
         $parser->parse();
+//
+//        $parser->debugDump();
+//        exit;
 
         $generator = new Generator($input->getOption('namespace'), $input->getOption('root-class'), $output_dir);
         $generator->generateClasses($parser->getSchemas());
