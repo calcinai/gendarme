@@ -1,6 +1,7 @@
 {
   "name": "calcinai/gendarme",
   "description": "Application to generate constrained SKDs based on JSON schemas",
+  "license": "MIT",
 
   "require": {
     "symfony/console": "^3.1",
