@@ -18,4 +18,9 @@ abstract class BaseSchema {
 
     }
 
+
+    public static function create($data = null) {
+        return new static($data);
+    }
+
 }

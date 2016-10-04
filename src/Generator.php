@@ -9,30 +9,75 @@ namespace Calcinai\Gendarme;
 
 use Calcinai\Gendarme\Templates\BaseSchema;
 use ICanBoogie\Inflector;
+use PhpParser\Builder\Method;
+use PhpParser\Builder\Param;
 use PhpParser\BuilderFactory;
 use PhpParser\Node;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
-use PhpParser\Node\Stmt\Return_;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter\Standard;
 
+/**
+ * This class is pretty big.  All it does is take parsed schemas and write them out as PHP classes.
+ *
+ * Class Generator
+ * @package Calcinai\Gendarme
+ */
 class Generator {
 
     /**
+     * The base (user-defined) namespace
+     * 
      * @var string
      */
     private $base_namespace;
 
-
+    /**
+     * The base class that al schemas extend
+     * 
+     * @var string
+     */
     private $base_schema_class;
 
 
-    private $printer;
+    /**
+     * The class that is used for the root of the schema i.e. #/
+     * 
+     * @var string
+     */
     private $root_class_name;
 
+
+    /**
+     * Directory to write the output to
+     * 
+     * @var
+     */
     private $output_dir;
+
+
+    /**
+     * Builder for the components of the generated nodes
+     * 
+     * @var BuilderFactory
+     */
+    private $builder_factory;
+
+    /**
+     * Output printer/formatter.  Converts AST to PHP
+     * 
+     * @var Standard
+     */
+    private $printer;
+
+    /**
+     * Inflector for string transformation
+     *
+     * @var Inflector
+     */
+    private $inflector;
 
     /**
      * Generator constructor.
@@ -45,6 +90,10 @@ class Generator {
         $this->root_class_name = $root_class_name;
         $this->output_dir = $output_dir;
 
+
+        $this->inflector = Inflector::get();
+
+        $this->builder_factory = new BuilderFactory();
         $this->printer = new Standard(['shortArraySyntax' => true]);
 
 
@@ -115,15 +164,13 @@ class Generator {
      */
     private function buildModel(Schema $schema) {
 
-        $inflector = Inflector::get();
-        $factory = new BuilderFactory();
-
+        $default_values = [];
         $used_class_roots = [];
 
-        $namespace = $factory->namespace($schema->getNamespace())->addStmt(
-            $factory->use(sprintf('%s\\%s', $this->base_namespace, $this->base_schema_class))
+        $namespace = $this->builder_factory->namespace($schema->getNamespace())->addStmt(
+            $this->builder_factory->use(sprintf('%s\\%s', $this->base_namespace, $this->base_schema_class))
         );
-        $class = $factory->class($schema->getClassName())->extend($this->base_schema_class);
+        $class = $this->builder_factory->class($schema->getClassName())->extend($this->base_schema_class);
 
         if(!empty($schema->description)){
             $class->setDocComment($this->formatDocComment([$schema->description]));
@@ -131,89 +178,222 @@ class Generator {
 
         foreach($schema->getProperties() as $property_name => $child_schema){
 
+            $hintable_classes = $child_schema->getHintableClasses();
+            $types = $child_schema->getHintableClasses(true);
+
+            $setter_parameter = $this->buildParameter($property_name, $hintable_classes);
+
             //Create the setters/adders for the properties that are arrays
             if($child_schema->type === Schema::TYPE_ARRAY){
-                $method_name = sprintf('add%s', $inflector->singularize($inflector->camelize($property_name)));
-                $setter = $factory->method($method_name)->makePublic();
-                $setter->addStmt(new Expr\Assign(
-                        new Expr\ArrayDimFetch(
-                            new Expr\PropertyFetch(new Expr\Variable('this'), $property_name)
-                        ),
-                        new Expr\Variable($property_name))
-                );
-            //Create a simple setter (hinted if possible)
+                $class->addStmt($this->buildArraySetter($property_name, $setter_parameter, $types, $child_schema->description));
+                $class->addStmt($this->buildArrayGetter($property_name, $this->sanitisePropertyName($property_name), $types, $child_schema->description));
+
+                //Create a simple setter (hinted if possible)
             } else {
-                $method_name = sprintf('set%s', $inflector->camelize($property_name));
-                $setter = $factory->method($method_name)->makePublic();
-                $setter->addStmt(new Expr\Assign(
-                    new Expr\PropertyFetch(new Expr\Variable('this'), $property_name),
-                    new Expr\Variable($property_name))
-                );
-            }
-
-            //Makew the setters fluent
-            $setter->addStmt(new Return_(new Expr\Variable('this')));
-            $property = $factory->property($property_name)->makeProtected();
-            $parameter = $factory->param($property_name);
-
-            if(!empty($child_schema->default)){
-                $property->setDefault($child_schema->default);
-            }
-
-            $hintable_classes = $child_schema->getHintableClasses();
-
-            if(count($hintable_classes) === 1){
-                $parameter->setTypeHint(current($hintable_classes));
+                $class->addStmt($this->buildSetter($property_name, $setter_parameter, $types, $child_schema->description));
+                $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $types, $child_schema->description));
             }
 
             foreach($hintable_classes as $hintable_class){
                 $used_class_roots[strtok($hintable_class, '\\')] = true;
             }
 
-            if(!empty($child_schema->description)) {
-                $setter_lines =
-                $parameter_lines = [$child_schema->description, ''];
-            } else {
-                $setter_lines =
-                $parameter_lines = [];
+            if(!empty($child_schema->default)){
+                $default_values[$property_name] = $child_schema->default;
             }
 
-            $setter_lines[] = sprintf('@param %s $%s',  implode('|', $child_schema->getHintableClasses(true)), $property_name);
-            $setter_lines[] = '@return $this';
-
-            $parameter_lines[] = sprintf('@var %s', implode('|', $child_schema->getHintableClasses(true)));
-
-            $setter->setDocComment($this->formatDocComment($setter_lines));
-            $property->setDocComment($this->formatDocComment($parameter_lines));
-
-            $setter->addParam($parameter);
-            $class->addStmt($property);
-            $class->addStmt($setter);
         }
 
 
-        $parsed_pattern_props = [];
+        $class->addStmt($this->builder_factory->property('data')
+            ->makeProtected()
+            ->setDefault($default_values)
+            ->setDocComment($this->formatDocComment(['Array to store schema data and default values', '@var array'])));
 
-        foreach($schema->pattern_properties as $patern => $child_schema){
-            $parsed_pattern_props[$patern] = $child_schema->getHintableClasses(true);
-        }
 
-        $class->addStmt($factory->property('pattern_properties')
+        $parsed_pattern_props = array_map(function(Schema $child_schema){
+            return $child_schema->getHintableClasses(true);
+        }, $schema->pattern_properties);
+
+        $class->addStmt($this->builder_factory->property('pattern_properties')
             ->makeProtected()
             ->makeStatic()
             ->setDefault($parsed_pattern_props)
             ->setDocComment($this->formatDocComment(['Array to store any allowed pattern properties', '@var array'])));
 
+        $class->addStmt($this->builder_factory->property('allow_additional_properties')
+            ->makeProtected()
+            ->makeStatic()
+            ->setDefault($schema->allow_additional_properties)
+            ->setDocComment($this->formatDocComment(['If the schema allows arbitrary properties', '@var bool'])));
 
 
         foreach(array_keys($used_class_roots) as $class_root){
-            $namespace->addStmt($factory->use(sprintf('%s\\%s', $this->base_namespace, $class_root)));
+            $namespace->addStmt($this->builder_factory->use(sprintf('%s\\%s', $this->base_namespace, $class_root)));
         }
 
         return $namespace->addStmt($class)->getNode();
 
     }
 
+    /**
+     * @param $property_name
+     * @param $types
+     * @return Param
+     */
+    private function buildParameter($property_name, $types){
+
+        $property_name = $this->sanitisePropertyName($property_name);
+
+        $parameter = $this->builder_factory->param($property_name);
+
+        if(count($types) === 1){
+            $parameter->setTypeHint(current($types));
+        }
+
+        return $parameter;
+
+    }
+
+
+    /**
+     * @param Param $parameter
+     * @param string[] $types
+     * @param string|null $description
+     *
+     * @return Method
+     */
+    private function buildArraySetter($data_index, Param $parameter, $types, $description = null) {
+
+        $parameter_name = $parameter->getNode()->name;
+        $method_name = sprintf('add%s', $this->inflector->singularize($this->inflector->camelize($parameter_name)));
+
+        $setter = $this->builder_factory->method($method_name)->makePublic();
+        $setter->addParam($parameter);
+
+        //$this->property['prop'][] = &$property;
+        $setter->addStmt(new Expr\AssignRef(
+            new Expr\ArrayDimFetch(
+                new Expr\ArrayDimFetch(
+                    new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
+                    new Node\Scalar\String_($data_index)
+                )
+            ),
+            new Expr\Variable($parameter_name))
+        );
+
+        //return $this;
+        $setter->addStmt(new Stmt\Return_(new Expr\Variable('this')));
+
+        //Doc comments
+        if(!empty($description)){
+            $setter_lines[] = $description;
+        }
+
+        $setter_lines[] = sprintf('@param %s $%s',  implode('|', $types), $parameter_name);
+        $setter_lines[] = '@return $this';
+
+        $setter->setDocComment($this->formatDocComment($setter_lines));
+
+        return $setter;
+    }
+
+    /**
+     * @param Param $parameter
+     * @param string[] $types
+     * @param string|null $description
+     *
+     * @return Method
+     */
+    private function buildSetter($data_index, Param $parameter, $types, $description = null) {
+
+        $parameter_name = $parameter->getNode()->name;
+        $method_name = sprintf('set%s', $this->inflector->camelize($parameter_name));
+
+        $setter = $this->builder_factory->method($method_name)->makePublic();
+        $setter->addParam($parameter);
+
+        //$this->property = $property;
+        $setter->addStmt(new Expr\Assign(
+            new Expr\ArrayDimFetch(
+                new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
+                new Node\Scalar\String_($data_index)
+            ),
+            new Expr\Variable($parameter_name))
+        );
+
+        //return $this;
+        $setter->addStmt(new Stmt\Return_(new Expr\Variable('this')));
+
+
+        //Doc comments
+        if(!empty($description)){
+            $setter_lines[] = $description;
+        }
+
+        $setter_lines[] = sprintf('@param %s $%s',  implode('|', $types), $parameter_name);
+        $setter_lines[] = '@return $this';
+
+        $setter->setDocComment($this->formatDocComment($setter_lines));
+
+        return $setter;
+    }
+
+    /**
+     * @param $data_index
+     * @param string[] $types
+     * @param string|null $description
+     * @return Method
+     */
+    private function buildGetter($data_index, $property_name, $types, $description = null) {
+
+        $getter = $this->builder_factory->method(sprintf('get%s', $this->inflector->camelize($property_name)))->makePublic();
+        $getter->addStmt(new Stmt\Return_(
+                new Expr\ArrayDimFetch(
+                    new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
+                    new Node\Scalar\String_($data_index)
+                )
+            )
+        );
+
+        //Doc comments
+        if(!empty($description)){
+            $getter_lines[] = $description;
+        }
+
+        $getter_lines[] = sprintf('@return %s',  implode('|', $types));
+
+        $getter->setDocComment($this->formatDocComment($getter_lines));
+
+        return $getter;
+    }
+
+
+    /**
+     * Overload just to change the comments
+     *
+     * @param $data_index
+     * @param $property_name
+     * @param $types
+     * @param $description
+     *
+     * @return Method
+     */
+    private function buildArrayGetter($data_index, $property_name, $types, $description) {
+
+        $getter = $this->buildGetter($data_index, $property_name, $types, $description);
+
+        //Doc comments
+        if(!empty($description)){
+            $getter_lines[] = $description;
+        }
+
+        $getter_lines[] = sprintf('@return %s[]',  implode('|', $types));
+
+        $getter->setDocComment($this->formatDocComment($getter_lines));
+
+        return $getter;
+    }
 
     /**
      * Format an array into a doccomment
@@ -221,8 +401,12 @@ class Generator {
      * @param $lines
      * @return string
      */
-    public function formatDocComment($lines){
+    public static function formatDocComment($lines){
         return sprintf("\n/**\n * %s\n */", implode("\n * ", $lines));
+    }
+
+    private function sanitisePropertyName($name) {
+        return preg_replace('/(^[^a-z]|[^a-z0-9_\-])/i', '', $name);
     }
 
 }

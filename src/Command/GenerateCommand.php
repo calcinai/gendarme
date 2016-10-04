@@ -66,27 +66,6 @@ class GenerateCommand extends Command {
         $parser = new Parser($schema_file);
         $parser->parse();
 
-//        foreach($parser->getSchemas() as $schema) {
-//
-//            if($schema->type !== Schema::TYPE_OBJECT){
-//                continue;
-//            }
-//
-//            printf("%s\n", $schema->id);
-//            foreach($schema->getProperties() as $property_name => $property){
-//                printf("  %s: %s\n", $property_name, $property->type);
-//            }
-//            foreach($schema->pattern_properties as $pattern => $property){
-//                printf("  %s: %s\n", $pattern, $property->type);
-//            }
-//
-//            if(isset($schema->items)){
-//                printf("  []: %s\n", $schema->items->type);
-//            }
-//        }
-//
-//        exit;
-
         $generator = new Generator($input->getOption('namespace'), $input->getOption('root-class'), $output_dir);
         $generator->generateClasses($parser->getSchemas());
 

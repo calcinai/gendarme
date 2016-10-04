@@ -15,7 +15,16 @@ class Parser {
     private $json_schema_path;
     private $schema_stroage;
 
+    /**
+     * All parsed schemas.  This will include all schemas/nodes that can be found.
+     *
+     * @var Schema[]
+     */
     private $schemas = [];
+
+    /**
+     * @var array
+     */
     private $schema_aliases = [];
 
     public function __construct($schema_file) {
@@ -28,6 +37,9 @@ class Parser {
     }
 
 
+    /**
+     * Actually parse the schema
+     */
     public function parse(){
 
         $root_schema_id = sprintf('%s#', $this->json_schema_path);
@@ -37,6 +49,12 @@ class Parser {
     }
 
 
+    /**
+     * Parse a specific node.  This isn't directly recursive, but some of the handlers may recurse.
+     *
+     * @param $json_schema_id
+     * @param $json_schema
+     */
     public function parseNode($json_schema_id, $json_schema){
 
         if(isset($json_schema->{'$ref'})){
@@ -187,4 +205,28 @@ class Parser {
         return $json_schema_id;
     }
 
+
+    public function debugDump(){
+
+        foreach($this->schemas as $schema) {
+
+            if($schema->type !== Schema::TYPE_OBJECT){
+                continue;
+            }
+
+            printf("%s\n", $schema->id);
+            foreach($schema->getProperties() as $property_name => $property){
+                printf("  %s: %s\n", $property_name, $property->type);
+            }
+            foreach($schema->pattern_properties as $pattern => $property){
+                printf("  %s: %s\n", $pattern, $property->type);
+            }
+
+            if(isset($schema->items)){
+                printf("  []: %s\n", $schema->items->type);
+            }
+        }
+
+
+    }
 }
