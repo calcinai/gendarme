@@ -41,15 +41,6 @@ class Generator {
      */
     private $base_schema_class;
 
-
-    /**
-     * The class that is used for the root of the schema i.e. #/
-     * 
-     * @var string
-     */
-    private $root_class_name;
-
-
     /**
      * Directory to write the output to
      * 
@@ -82,12 +73,10 @@ class Generator {
     /**
      * Generator constructor.
      * @param $base_namespace
-     * @param $root_class_name
      * @param $output_dir
      */
-    public function __construct($base_namespace, $root_class_name, $output_dir) {
+    public function __construct($base_namespace, $output_dir) {
         $this->base_namespace = $base_namespace;
-        $this->root_class_name = $root_class_name;
         $this->output_dir = $output_dir;
 
 
@@ -164,21 +153,22 @@ class Generator {
         $used_class_roots = [];
 
         $schema_namespace = $schema->getNamespace();
-        $schema_class = $schema->getClassName();
 
         if(!empty($this->base_namespace)){
-            $schema_namespace = sprintf('%s\\%s', $this->base_namespace, $schema_namespace);
-        }
-
-        if(empty($schema_class)){
-            $schema_class = $this->root_class_name;
+            $schema_namespace = rtrim(sprintf('%s\\%s', $this->base_namespace, $schema_namespace), '\\');
         }
 
 
-        $namespace = $this->builder_factory->namespace($schema_namespace)->addStmt(
-            $this->builder_factory->use(sprintf('%s\\%s', $this->base_namespace, $this->base_schema_class))
-        );
-        $class = $this->builder_factory->class($schema_class)->extend($this->base_schema_class);
+        $namespace = $this->builder_factory->namespace($schema_namespace);
+
+        if($this->base_namespace !== $schema_namespace){
+            $namespace->addStmt(
+                $this->builder_factory->use(sprintf('%s\\%s', $this->base_namespace, $this->base_schema_class))
+            );
+        }
+
+
+        $class = $this->builder_factory->class($schema->getClassName())->extend($this->base_schema_class);
 
         if(!empty($schema->description)){
             $class->setDocComment($this->formatDocComment([$schema->description]));
@@ -298,7 +288,7 @@ class Generator {
             $setter_lines[] = $description;
         }
 
-        $setter_lines[] = sprintf('@param %s $%s',  implode('|', $types), $parameter_name);
+        $setter_lines[] = sprintf('@param %s $%s',  implode("|\n *        ", $types), $parameter_name);
         $setter_lines[] = '@return $this';
 
         $setter->setDocComment($this->formatDocComment($setter_lines));
@@ -339,7 +329,7 @@ class Generator {
             $setter_lines[] = $description;
         }
 
-        $setter_lines[] = sprintf('@param %s $%s',  implode('|', $types), $parameter_name);
+        $setter_lines[] = sprintf('@param %s $%s', implode("|\n *        ", $types), $parameter_name);
         $setter_lines[] = '@return $this';
 
         $setter->setDocComment($this->formatDocComment($setter_lines));
@@ -369,7 +359,7 @@ class Generator {
             $getter_lines[] = $description;
         }
 
-        $getter_lines[] = sprintf('@return %s',  implode('|', $types));
+        $getter_lines[] = sprintf('@return %s',  implode("|\n *         ", $types));
 
         $getter->setDocComment($this->formatDocComment($getter_lines));
 
@@ -396,7 +386,7 @@ class Generator {
             $getter_lines[] = $description;
         }
 
-        $getter_lines[] = sprintf('@return %s[]',  implode('|', $types));
+        $getter_lines[] = sprintf('@return %s[]',  implode("|\n *         ", $types));
 
         $getter->setDocComment($this->formatDocComment($getter_lines));
 

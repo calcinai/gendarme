@@ -257,13 +257,38 @@ class Schema {
     }
 
 
+    /**
+     * @param $class
+     * @return $this
+     */
+    public function setClassName($class) {
+        $this->class_name = $class;
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
     public function getClassName(){
         return $this->class_name;
     }
 
+    /**
+     * @return mixed
+     */
     public function getRelativeClassName(){
         return $this->relative_class_name;
     }
+
+    /**
+     * @param $class_name
+     * @return $this
+     */
+    public function setRelativeClassName($class_name) {
+        $this->relative_class_name = $class_name;
+        return $this;
+    }
+
 
     public function getNamespace(){
         return $this->namespace;

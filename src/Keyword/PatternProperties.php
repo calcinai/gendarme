@@ -23,11 +23,8 @@ class PatternProperties extends AbstractKeyword {
 
             $property_schema_id = sprintf('%s/patternProperties/%s', $schema->id, strtr($property_name, ['/' => '~1', '~' => '~0', '%' => '%25']));
 
-            if(!$parser->hasSchema($property_schema_id)){
-                $parser->parseNode($property_schema_id, $property);
-            }
-
-            $schema->addPatternProperty($property_name, $parser->getSchema($property_schema_id));
+            $child_schema = $parser->parseNode($property_schema_id, $property);
+            $schema->addPatternProperty($property_name, $child_schema);
         }
 
         return $schema;

@@ -65,12 +65,16 @@ class GenerateCommand extends Command {
         $output_dir = realpath($output_dir);
 
         $parser = new Parser($schema_file);
-        $parser->parse();
+        $root_schema = $parser->parse();
+
+        //There's no way to compute this
+        $root_schema->setClassName($input->getOption('root-class'))
+            ->setRelativeClassName($input->getOption('root-class'));
 
 //        $parser->debugDump();
 //        exit;
 
-        $generator = new Generator($input->getOption('namespace'), $input->getOption('root-class'), $output_dir);
+        $generator = new Generator($input->getOption('namespace'), $output_dir);
         $generator->generateClasses($parser->getSchemas());
 
 

@@ -23,11 +23,8 @@ class Properties extends AbstractKeyword {
 
             $property_schema_id = sprintf('%s/properties/%s', $schema->id, $property_name);
 
-            if(!$parser->hasSchema($property_schema_id)){
-                $parser->parseNode($property_schema_id, $property);
-            }
-
-            $schema->addProperty($property_name, $parser->getSchema($property_schema_id));
+            $child_schema = $parser->parseNode($property_schema_id, $property);
+            $schema->addProperty($property_name, $child_schema);
         }
 
         //If we encounter properties, it implies it's an object.

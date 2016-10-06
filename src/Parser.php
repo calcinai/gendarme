@@ -61,7 +61,7 @@ class Parser {
     public function parseNode($json_schema_id, $json_schema){
 
         if($this->hasSchema($json_schema_id)){
-            return $this->getSchema($json_schema);
+            return $this->getSchema($json_schema_id);
         }
 
         if(isset($json_schema->{'$ref'})){

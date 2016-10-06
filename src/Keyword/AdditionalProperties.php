@@ -26,11 +26,8 @@ class AdditionalProperties extends AbstractKeyword {
 
         $property_schema_id = sprintf('%s/additionalProperties', $schema->id);
 
-        if(!$parser->hasSchema($property_schema_id)){
-            $parser->parseNode($property_schema_id, $node);
-        }
-
-        $schema->setAdditionalProperties($parser->getSchema($property_schema_id));
+        $child_schema = $parser->parseNode($property_schema_id, $node);
+        $schema->setAdditionalProperties($child_schema);
 
         return $schema;
     }

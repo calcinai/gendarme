@@ -26,9 +26,8 @@ class AdditionalItems extends AbstractKeyword {
 
         $item_schema_id = sprintf('%s/additionalItems', $schema->id);
 
-        $parser->parseNode($item_schema_id, $node);
-
-        $schema->setAdditionalItems($parser->getSchema($item_schema_id));
+        $child_schema = $parser->parseNode($item_schema_id, $node);
+        $schema->setAdditionalItems($child_schema);
 
         return $schema;
     }

@@ -21,11 +21,8 @@ class Items extends AbstractKeyword {
 
         $property_schema_id = sprintf('%s/items', $schema->id);
 
-        if(!$parser->hasSchema($property_schema_id)){
-            $parser->parseNode($property_schema_id, $node);
-        }
-
-        $schema->setItems($parser->getSchema($property_schema_id));
+        $child_schema = $parser->parseNode($property_schema_id, $node);
+        $schema->setItems($child_schema);
 
         //If we encounter items, it implies it's an object.
         $schema->setType(Schema::TYPE_ARRAY);

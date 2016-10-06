@@ -24,11 +24,8 @@ class AllOf extends AbstractKeyword {
 
             $allof_schema_id = sprintf('%s/allOf/%s', $schema->id, $index);
 
-            if(!$parser->hasSchema($allof_schema_id)){
-                $parser->parseNode($allof_schema_id, $allof);
-            }
-
-            $schema->addAllOf($parser->getSchema($allof_schema_id));
+            $child_schema = $parser->parseNode($allof_schema_id, $allof);
+            $schema->addAllOf($child_schema);
         }
 
         return $schema;
