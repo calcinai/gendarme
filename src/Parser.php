@@ -39,13 +39,15 @@ class Parser {
 
     /**
      * Actually parse the schema
+     *
+     * @return Schema The root parsed schema
      */
     public function parse(){
 
         $root_schema_id = sprintf('%s#', $this->json_schema_path);
         $root_schema = $this->schema_stroage->resolveRef($root_schema_id);
 
-        $this->parseNode($root_schema_id, $root_schema);
+        return $this->parseNode($root_schema_id, $root_schema);
     }
 
 
@@ -54,8 +56,13 @@ class Parser {
      *
      * @param $json_schema_id
      * @param $json_schema
+     * @return Schema
      */
     public function parseNode($json_schema_id, $json_schema){
+
+        if($this->hasSchema($json_schema_id)){
+            return $this->getSchema($json_schema);
+        }
 
         if(isset($json_schema->{'$ref'})){
             $this->addSchemaAlias($json_schema_id, $json_schema->{'$ref'});
@@ -65,7 +72,6 @@ class Parser {
         }
 
         $schema = $this->getSchema($json_schema_id);
-
 
         //More of these need implementing
         //Could probably be dynamic too.
@@ -102,6 +108,7 @@ class Parser {
                 case 'pattern':
                     break;
                 case 'additionalItems':
+                    Keyword\AdditionalItems::parse($this, $schema, $node);
                     break;
                 case 'items':
                     Keyword\Items::parse($this, $schema, $node);
@@ -151,6 +158,8 @@ class Parser {
             }
 
         }
+
+        return $schema;
 
     }
 
@@ -210,20 +219,29 @@ class Parser {
 
         foreach($this->schemas as $schema) {
 
-            if($schema->type !== Schema::TYPE_OBJECT){
+            if(!in_array($schema->type, [Schema::TYPE_OBJECT, Schema::TYPE_ARRAY])){
                 continue;
             }
 
-            printf("%s\n", $schema->id);
+            printf("Namespace: %s\nRelative Class: %s\nClass: %s\n",
+                $schema->getNamespace(),
+                $schema->getRelativeClassName(),
+                $schema->getClassName());
+
             foreach($schema->getProperties() as $property_name => $property){
-                printf("  %s: %s\n", $property_name, $property->type);
+                printf("  %s: %s\n", $property_name, implode('|', $property->getHintableClasses()));
             }
             foreach($schema->pattern_properties as $pattern => $property){
-                printf("  %s: %s\n", $pattern, $property->type);
+                printf("  %s: %s\n", $pattern, $property->getRelativeClassName());
             }
 
-            if(isset($schema->items)){
-                printf("  []: %s\n", $schema->items->type);
+            if($schema->items instanceof Schema){
+                printf("  []: %s\n", $schema->items->getRelativeClassName());
+            } elseif(is_array($schema->items)) {
+                foreach($schema->items as $item){
+                    /** @var $item Schema */
+                    printf("  []: %s\n", $item->getRelativeClassName());
+                }
             }
         }
 

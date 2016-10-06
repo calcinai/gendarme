@@ -8,6 +8,7 @@ namespace Calcinai\Gendarme\Command;
 
 use Calcinai\Gendarme\Generator;
 use Calcinai\Gendarme\Parser;
+use Calcinai\Gendarme\Schema;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\InputArgument;
@@ -65,7 +66,7 @@ class GenerateCommand extends Command {
 
         $parser = new Parser($schema_file);
         $parser->parse();
-//
+
 //        $parser->debugDump();
 //        exit;
 

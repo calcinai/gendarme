@@ -96,10 +96,6 @@ class Generator {
         $this->builder_factory = new BuilderFactory();
         $this->printer = new Standard(['shortArraySyntax' => true]);
 
-
-        Schema::setBaseNamespace($base_namespace);
-        Schema::setDefaultClass($root_class_name);
-
     }
 
 
@@ -167,10 +163,22 @@ class Generator {
         $default_values = [];
         $used_class_roots = [];
 
-        $namespace = $this->builder_factory->namespace($schema->getNamespace())->addStmt(
+        $schema_namespace = $schema->getNamespace();
+        $schema_class = $schema->getClassName();
+
+        if(!empty($this->base_namespace)){
+            $schema_namespace = sprintf('%s\\%s', $this->base_namespace, $schema_namespace);
+        }
+
+        if(empty($schema_class)){
+            $schema_class = $this->root_class_name;
+        }
+
+
+        $namespace = $this->builder_factory->namespace($schema_namespace)->addStmt(
             $this->builder_factory->use(sprintf('%s\\%s', $this->base_namespace, $this->base_schema_class))
         );
-        $class = $this->builder_factory->class($schema->getClassName())->extend($this->base_schema_class);
+        $class = $this->builder_factory->class($schema_class)->extend($this->base_schema_class);
 
         if(!empty($schema->description)){
             $class->setDocComment($this->formatDocComment([$schema->description]));
@@ -221,11 +229,11 @@ class Generator {
             ->setDefault($parsed_pattern_props)
             ->setDocComment($this->formatDocComment(['Array to store any allowed pattern properties', '@var array'])));
 
-        $class->addStmt($this->builder_factory->property('allow_additional_properties')
-            ->makeProtected()
-            ->makeStatic()
-            ->setDefault($schema->allow_additional_properties)
-            ->setDocComment($this->formatDocComment(['If the schema allows arbitrary properties', '@var bool'])));
+//        $class->addStmt($this->builder_factory->property('allow_additional_properties')
+//            ->makeProtected()
+//            ->makeStatic()
+//            ->setDefault($schema->allow_additional_properties)
+//            ->setDocComment($this->formatDocComment(['If the schema allows arbitrary properties', '@var bool'])));
 
 
         foreach(array_keys($used_class_roots) as $class_root){

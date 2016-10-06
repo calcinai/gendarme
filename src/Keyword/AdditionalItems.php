@@ -9,7 +9,7 @@ namespace Calcinai\Gendarme\Keyword;
 use Calcinai\Gendarme\Schema;
 use Calcinai\Gendarme\Parser;
 
-class AdditionalProperties extends AbstractKeyword {
+class AdditionalItems extends AbstractKeyword {
 
     /**
      * @param Parser $parser
@@ -20,17 +20,15 @@ class AdditionalProperties extends AbstractKeyword {
     public static function parse(Parser $parser, Schema $schema, $node) {
 
         if(is_bool($node)){
-            $schema->setAdditionalProperties($node);
+            $schema->setAdditionalItems($node);
             return $schema;
         }
 
-        $property_schema_id = sprintf('%s/additionalProperties', $schema->id);
+        $item_schema_id = sprintf('%s/additionalItems', $schema->id);
 
-        if(!$parser->hasSchema($property_schema_id)){
-            $parser->parseNode($property_schema_id, $node);
-        }
+        $parser->parseNode($item_schema_id, $node);
 
-        $schema->setAdditionalProperties($parser->getSchema($property_schema_id));
+        $schema->setAdditionalItems($parser->getSchema($item_schema_id));
 
         return $schema;
     }
