@@ -296,23 +296,20 @@ class Schema {
 
 
     public function getProperties() {
+        return $this->properties;
+    }
 
-        foreach($this->properties as $property_name => $property){
-            yield $property_name => $property;
-        }
-
-        if($this->additional_properties instanceof Schema){
-            //Would be nice (php7)
-//            yield from $this->additional_properties->getProperties();
-            foreach($this->additional_properties->getProperties() as $property_name => $property){
-                yield $property_name => $property;
-            }
-        }
+    public function getAdditionalProperties() {
+        return $this->additional_properties;
     }
 
 
     public function getItems() {
         return $this->items;
+    }
+
+    public function getAdditionalItems() {
+        return $this->additional_items;
     }
 
 
@@ -349,6 +346,9 @@ class Schema {
             $hints = array_merge($hints, $this->getHintsFromSchema($this, $include_scalar));
         }
 
+
+
+        
         //There must be a cleaner way to do this
         if(empty($hints) && empty($this->properties) && $this->additional_properties instanceof Schema){
             $hints = array_merge($hints, $this->additional_properties->getHintableClasses($include_scalar));
