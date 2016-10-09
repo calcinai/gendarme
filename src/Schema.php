@@ -346,9 +346,8 @@ class Schema {
             $hints = array_merge($hints, $this->getHintsFromSchema($this, $include_scalar));
         }
 
-
-
         
+
         //There must be a cleaner way to do this
         if(empty($hints) && empty($this->properties) && $this->additional_properties instanceof Schema){
             $hints = array_merge($hints, $this->additional_properties->getHintableClasses($include_scalar));
