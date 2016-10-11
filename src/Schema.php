@@ -328,8 +328,6 @@ class Schema {
 
         if($this->items instanceof Schema){
             $hints = $this->items->getHintableClasses($include_scalar);
-        } elseif (is_array($this->items)){
-            $hints[] = 'array';
         }
 
         //No sane schema would have all of these in it together, would it?
@@ -345,14 +343,6 @@ class Schema {
         if(!empty($this->allof)){
             $hints = array_merge($hints, $this->getHintsFromSchema($this, $include_scalar));
         }
-
-        
-
-        //There must be a cleaner way to do this
-        if(empty($hints) && empty($this->properties) && $this->additional_properties instanceof Schema){
-            $hints = array_merge($hints, $this->additional_properties->getHintableClasses($include_scalar));
-        }
-
 
         //Finally, if there's nothing from other properties, it's this.
         if(empty($hints)){

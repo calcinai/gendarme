@@ -209,9 +209,22 @@ class Generator {
             ->setDocComment($this->formatDocComment(['Array to store schema data and default values', '@var array'])));
 
 
+        if($schema->additional_properties instanceof Schema){
+            $additional_properties = $schema->additional_properties->getHintableClasses();
+        } else {
+            $additional_properties = $schema->additional_properties;
+        }
+
+        $class->addStmt($this->builder_factory->property('additional_properties')
+            ->makeProtected()
+            ->makeStatic()
+            ->setDefault($additional_properties)
+            ->setDocComment($this->formatDocComment(['Allowed additional properties', '@var array'])));
+
         $parsed_pattern_props = array_map(function(Schema $child_schema){
             return $child_schema->getHintableClasses(true);
         }, $schema->pattern_properties);
+
 
         $class->addStmt($this->builder_factory->property('pattern_properties')
             ->makeProtected()
@@ -219,11 +232,6 @@ class Generator {
             ->setDefault($parsed_pattern_props)
             ->setDocComment($this->formatDocComment(['Array to store any allowed pattern properties', '@var array'])));
 
-//        $class->addStmt($this->builder_factory->property('allow_additional_properties')
-//            ->makeProtected()
-//            ->makeStatic()
-//            ->setDefault($schema->allow_additional_properties)
-//            ->setDocComment($this->formatDocComment(['If the schema allows arbitrary properties', '@var bool'])));
 
 
         foreach(array_keys($used_class_roots) as $class_root){

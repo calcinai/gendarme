@@ -51,6 +51,7 @@ class GenerateCommand extends Command {
 
     protected function execute(InputInterface $input, OutputInterface $output){
 
+
         $schema_file = $input->getArgument('schema');
         $output_dir = $input->getArgument('output');
 
