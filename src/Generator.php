@@ -222,7 +222,7 @@ class Generator {
             ->setDocComment($this->formatDocComment(['Allowed additional properties', '@var array'])));
 
         $parsed_pattern_props = array_map(function(Schema $child_schema){
-            return $child_schema->getHintableClasses(true);
+            return $child_schema->getHintableClasses();
         }, $schema->pattern_properties);
 
 
