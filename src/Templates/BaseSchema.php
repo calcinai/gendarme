@@ -38,8 +38,11 @@ abstract class BaseSchema implements \JsonSerializable {
 
     }
 
-
-
+    /**
+     * @param $property_name
+     * @param $value
+     * @return bool
+     */
     private function validateProperty($property_name, $value) {
 
         if(is_bool(static::$additional_properties) && static::$additional_properties) {
@@ -82,17 +85,25 @@ abstract class BaseSchema implements \JsonSerializable {
 
     }
 
-
+    /**
+     * @param $relative_class
+     * @return string
+     */
     public static function getFQCN($relative_class){
         return sprintf('\\%s\\%s', __NAMESPACE__, $relative_class);
     }
 
-
+    /**
+     * @param null $data
+     * @return static
+     */
     public static function create($data = null) {
         return new static($data);
     }
 
-
+    /**
+     * @return mixed
+     */
     function jsonSerialize() {
         return $this->data;
     }
