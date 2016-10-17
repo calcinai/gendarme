@@ -7,6 +7,7 @@
 namespace Calcinai\Gendarme;
 
 
+use Calcinai\Gendarme\Generator\Printer;
 use Calcinai\Gendarme\Templates\BaseSchema;
 use ICanBoogie\Inflector;
 use PhpParser\Builder\Method;
@@ -17,7 +18,6 @@ use PhpParser\Node\Expr;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
 use PhpParser\ParserFactory;
-use PhpParser\PrettyPrinter\Standard;
 
 /**
  * This class is pretty big.  All it does is take parsed schemas and write them out as PHP classes.
@@ -59,7 +59,7 @@ class Generator {
     /**
      * Output printer/formatter.  Converts AST to PHP
      * 
-     * @var Standard
+     * @var Printer
      */
     private $printer;
 
@@ -83,7 +83,7 @@ class Generator {
         $this->inflector = Inflector::get();
 
         $this->builder_factory = new BuilderFactory();
-        $this->printer = new Standard(['shortArraySyntax' => true]);
+        $this->printer = new Printer(['shortArraySyntax' => true]);
 
     }
 
@@ -150,21 +150,13 @@ class Generator {
     private function buildModel(Schema $schema) {
 
         $default_values = [];
-        $used_class_roots = [];
+        $class_resolver = new ClassResolver($this->base_namespace);
+        $fq_model_class = $class_resolver->addClass($schema->getRelativeClassName());
 
-        $schema_namespace = $schema->getNamespace();
+        $namespace = $this->builder_factory->namespace($class_resolver->getClassNamespace($fq_model_class));
 
-        if(!empty($this->base_namespace)){
-            $schema_namespace = rtrim(sprintf('%s\\%s', $this->base_namespace, $schema_namespace), '\\');
-        }
-
-
-        $namespace = $this->builder_factory->namespace($schema_namespace);
-
-        if($this->base_namespace !== $schema_namespace){
-            $namespace->addStmt(
-                $this->builder_factory->use(sprintf('%s\\%s', $this->base_namespace, $this->base_schema_class))
-            );
+        if($this->base_namespace !== $class_resolver->getClassNamespace($fq_model_class)){
+            $class_resolver->addClass($this->base_schema_class);
         }
 
 
@@ -192,9 +184,9 @@ class Generator {
                 $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $types, $child_schema->description));
             }
 
-            foreach($hintable_classes as $hintable_class){
-                $used_class_roots[strtok($hintable_class, '\\')] = true;
-            }
+//            foreach($hintable_classes as $hintable_class){
+//                $used_class_roots[strtok($hintable_class, '\\')] = true;
+//            }
 
             if(!empty($child_schema->default)){
                 $default_values[$property_name] = $child_schema->default;
@@ -233,16 +225,17 @@ class Generator {
             ->setDocComment($this->formatDocComment(['Array to store any allowed pattern properties', '@var array'])));
 
 
-
-        foreach(array_keys($used_class_roots) as $class_root){
-            $namespace->addStmt($this->builder_factory->use(sprintf('%s\\%s', $this->base_namespace, $class_root)));
-        }
+//        foreach(array_keys($used_class_roots) as $class_root){
+//            $namespace->addStmt($this->builder_factory->use(sprintf('%s\\%s', $this->base_namespace, $class_root)));
+//        }
 
         return $namespace->addStmt($class)->getNode();
 
     }
 
     /**
+     * Unfortunately these need to be full since there's no easy way to know if they'll be conflicting in advance.
+     *
      * @param $property_name
      * @param $types
      * @return Param
@@ -254,7 +247,8 @@ class Generator {
         $parameter = $this->builder_factory->param($property_name);
 
         if(count($types) === 1){
-            $parameter->setTypeHint(current($types));
+            $relative = current($types);
+            $parameter->setTypeHint(sprintf('\\%s\\%s', $this->base_namespace, $relative));
         }
 
         return $parameter;
@@ -263,10 +257,10 @@ class Generator {
 
 
     /**
+     * @param $data_index
      * @param Param $parameter
      * @param string[] $types
      * @param string|null $description
-     *
      * @return Method
      */
     private function buildArraySetter($data_index, Param $parameter, $types, $description = null) {
@@ -277,15 +271,11 @@ class Generator {
         $setter = $this->builder_factory->method($method_name)->makePublic();
         $setter->addParam($parameter);
 
-        //$this->property['prop'][] = &$property;
-        $setter->addStmt(new Expr\AssignRef(
-            new Expr\ArrayDimFetch(
-                new Expr\ArrayDimFetch(
-                    new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
-                    new Node\Scalar\String_($data_index)
-                )
-            ),
-            new Expr\Variable($parameter_name))
+        $setter->addStmt(new Expr\MethodCall(
+                new Expr\Variable('this'), 'addInternalData', [
+                new Node\Scalar\String_($data_index),
+                new Expr\Variable($parameter_name)
+            ])
         );
 
         //return $this;
@@ -319,13 +309,11 @@ class Generator {
         $setter = $this->builder_factory->method($method_name)->makePublic();
         $setter->addParam($parameter);
 
-        //$this->property = $property;
-        $setter->addStmt(new Expr\Assign(
-            new Expr\ArrayDimFetch(
-                new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
-                new Node\Scalar\String_($data_index)
-            ),
-            new Expr\Variable($parameter_name))
+        $setter->addStmt(new Expr\MethodCall(
+            new Expr\Variable('this'), 'setInternalData', [
+                new Node\Scalar\String_($data_index),
+                new Expr\Variable($parameter_name)
+            ])
         );
 
         //return $this;
@@ -401,6 +389,7 @@ class Generator {
         return $getter;
     }
 
+
     /**
      * Format an array into a doccomment
      *
@@ -408,7 +397,7 @@ class Generator {
      * @return string
      */
     public static function formatDocComment($lines){
-        return sprintf("\n/**\n * %s\n */", implode("\n * ", $lines));
+        return sprintf("/**\n * %s\n */", implode("\n * ", $lines));
     }
 
     private function sanitisePropertyName($name) {

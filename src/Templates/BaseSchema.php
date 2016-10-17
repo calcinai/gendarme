@@ -8,6 +8,8 @@ namespace Calcinai\Gendarme\Templates;
 
 abstract class BaseSchema implements \JsonSerializable {
 
+    protected $parent_schema;
+
     protected $data;
 
     protected static $pattern_properties = [];
@@ -32,7 +34,7 @@ abstract class BaseSchema implements \JsonSerializable {
 
         $this->validateProperty($property_name, $value);
 
-        $this->data[$property_name] = $value;
+        $this->setInternalData($property_name, $value);
 
         return $this;
 
@@ -85,11 +87,68 @@ abstract class BaseSchema implements \JsonSerializable {
 
     }
 
+
+    /**
+     * @param $property_name
+     * @param $value
+     */
+    protected function setInternalData($property_name, $value){
+
+        $this->data[$property_name] = $value;
+
+        //This is so the generated code is a bit cleaner.
+        if($value instanceof BaseSchema){
+            $value->setParentSchema($this);
+        }
+    }
+
+    /**
+     * @param $property_name
+     * @param $value
+     */
+    protected function addInternalData($property_name, $value){
+
+        $this->data[$property_name][] =& $value;
+
+        //This is so the generated code is a bit cleaner.
+        if($value instanceof BaseSchema){
+            $value->setParentSchema($this);
+        }
+    }
+
+    /**
+     * @param mixed $parent_schema
+     * @return BaseSchema
+     */
+    protected function setParentSchema($parent_schema) {
+        $this->parent_schema = $parent_schema;
+        return $this;
+    }
+
+
+    /**
+     * This should be overloaded if there's actually a id
+     *
+     * It's probably not the best implementation, but it's used rarely.
+     *
+     * @return $this
+     */
+    public function getId(){
+
+        if($this->parent_schema instanceof BaseSchema){
+            return sprintf('/%s', array_search($this, $this->parent_schema->data));
+        } else {
+            return '#';
+        }
+
+    }
+
+
     /**
      * @param $relative_class
      * @return string
      */
-    public static function getFQCN($relative_class){
+    protected static function getFQCN($relative_class){
         return sprintf('\\%s\\%s', __NAMESPACE__, $relative_class);
     }
 
@@ -107,4 +166,6 @@ abstract class BaseSchema implements \JsonSerializable {
     function jsonSerialize() {
         return $this->data;
     }
+
+
 }
