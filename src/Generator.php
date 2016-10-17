@@ -151,16 +151,12 @@ class Generator {
 
         $default_values = [];
         $class_resolver = new ClassResolver($this->base_namespace);
+        $fq_base_class = $class_resolver->addClass($this->base_schema_class);
         $fq_model_class = $class_resolver->addClass($schema->getRelativeClassName());
 
-        $namespace = $this->builder_factory->namespace($class_resolver->getClassNamespace($fq_model_class));
+        $namespace = $this->builder_factory->namespace($class_resolver->getNamespace($fq_model_class));
 
-        if($this->base_namespace !== $class_resolver->getClassNamespace($fq_model_class)){
-            $class_resolver->addClass($this->base_schema_class);
-        }
-
-
-        $class = $this->builder_factory->class($schema->getClassName())->extend($this->base_schema_class);
+        $class = $this->builder_factory->class($class_resolver->getClassName($fq_model_class))->extend($class_resolver->getClassName($fq_base_class));
 
         if(!empty($schema->description)){
             $class->setDocComment($this->formatDocComment([$schema->description]));
@@ -169,7 +165,10 @@ class Generator {
         foreach($schema->getProperties() as $property_name => $child_schema){
 
             $hintable_classes = $child_schema->getHintableClasses();
-            $types = $child_schema->getHintableClasses(true);
+            $types = array_map(function($class_name) use($class_resolver){
+                $fq_class = $class_resolver->addClass($class_name);
+                return $class_resolver->getClassName($fq_class);
+            }, $child_schema->getHintableClasses(true));
 
             $setter_parameter = $this->buildParameter($property_name, $hintable_classes);
 
@@ -183,10 +182,6 @@ class Generator {
                 $class->addStmt($this->buildSetter($property_name, $setter_parameter, $types, $child_schema->description));
                 $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $types, $child_schema->description));
             }
-
-//            foreach($hintable_classes as $hintable_class){
-//                $used_class_roots[strtok($hintable_class, '\\')] = true;
-//            }
 
             if(!empty($child_schema->default)){
                 $default_values[$property_name] = $child_schema->default;
@@ -225,9 +220,10 @@ class Generator {
             ->setDocComment($this->formatDocComment(['Array to store any allowed pattern properties', '@var array'])));
 
 
-//        foreach(array_keys($used_class_roots) as $class_root){
-//            $namespace->addStmt($this->builder_factory->use(sprintf('%s\\%s', $this->base_namespace, $class_root)));
-//        }
+        foreach($class_resolver->getForeignClasses() as $fq_class){
+            $use = $this->builder_factory->use($fq_class);
+            $namespace->addStmt($use);
+        }
 
         return $namespace->addStmt($class)->getNode();
 

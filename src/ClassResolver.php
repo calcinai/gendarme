@@ -13,7 +13,7 @@ class ClassResolver {
 
     private $class_names = [];
     private $class_aliases = [];
-    private $class_namespaces = [];
+    private $namespaces = [];
 
     public function __construct($namespace) {
         $this->namespace = $namespace;
@@ -37,7 +37,7 @@ class ClassResolver {
         $class_name = substr($fq_class, $last_slash_pos +1);
         $namespace = substr($fq_class, 0, $last_slash_pos);
 
-        $this->class_namespaces[$fq_class] = $namespace;
+        $this->namespaces[$fq_class] = $namespace;
         $this->class_names[$fq_class] = $class_name;
 
         if(false === array_search($class_name, $this->class_aliases)){
@@ -51,8 +51,8 @@ class ClassResolver {
         return $fq_class;
     }
 
-    public function getClassNamespace($fq_class){
-        return $this->class_namespaces[$fq_class];
+    public function getNamespace($fq_class){
+        return $this->namespaces[$fq_class];
     }
 
     public function getClassName($fq_class){
@@ -61,6 +61,14 @@ class ClassResolver {
 
     public function getClassAlias($fq_class){
         return $this->class_aliases[$fq_class];
+    }
+
+    public function getForeignClasses() {
+        foreach($this->namespaces as $fq_class => $namespace){
+            if($namespace !== $this->namespace){
+                yield $fq_class;
+            }
+        }
     }
 
 }
