@@ -9,22 +9,22 @@ namespace Calcinai\Gendarme;
 
 class ClassResolver {
 
-    private $namespace;
+    private $base_namespace;
 
     private $class_names = [];
     private $class_aliases = [];
     private $namespaces = [];
 
     public function __construct($namespace) {
-        $this->namespace = $namespace;
+        $this->base_namespace = $namespace;
     }
 
     public function addClass($relative_class_name){
 
         $fq_class = $relative_class_name;
 
-        if(!empty($this->namespace)){
-            $fq_class = rtrim(sprintf('%s\\%s', $this->namespace, $fq_class));
+        if(!empty($this->base_namespace)){
+            $fq_class = rtrim(sprintf('%s\\%s', $this->base_namespace, $fq_class));
         }
 
         //If it's already been processed, pass it back
@@ -42,7 +42,7 @@ class ClassResolver {
 
         if(false === array_search($class_name, $this->class_aliases)){
             //Doesn't need an alias
-            $this->class_aliases[$fq_class] = null;
+            $this->class_aliases[$fq_class] = $class_name;
         } else {
             //Append some random(enough) at the end
             $this->class_aliases[$fq_class] = sprintf('%s%s', $class_name, substr(md5(microtime()), rand(0, 26), 5));
@@ -63,9 +63,10 @@ class ClassResolver {
         return $this->class_aliases[$fq_class];
     }
 
-    public function getForeignClasses() {
+    public function getForeignClasses($local_class) {
+        $local_namespace = $this->getNamespace($local_class);
         foreach($this->namespaces as $fq_class => $namespace){
-            if($namespace !== $this->namespace){
+            if($namespace !== $local_namespace){
                 yield $fq_class;
             }
         }

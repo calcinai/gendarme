@@ -164,23 +164,22 @@ class Generator {
 
         foreach($schema->getProperties() as $property_name => $child_schema){
 
-            $hintable_classes = $child_schema->getHintableClasses();
-            $types = array_map(function($class_name) use($class_resolver){
+            $hintable_classes = array_map(function($class_name) use($class_resolver){
                 $fq_class = $class_resolver->addClass($class_name);
-                return $class_resolver->getClassName($fq_class);
-            }, $child_schema->getHintableClasses(true));
+                return $class_resolver->getClassAlias($fq_class);
+            }, $child_schema->getHintableClasses());
 
             $setter_parameter = $this->buildParameter($property_name, $hintable_classes);
 
             //Create the setters/adders for the properties that are arrays
             if($child_schema->type === Schema::TYPE_ARRAY){
-                $class->addStmt($this->buildArraySetter($property_name, $setter_parameter, $types, $child_schema->description));
-                $class->addStmt($this->buildArrayGetter($property_name, $this->sanitisePropertyName($property_name), $types, $child_schema->description));
+                $class->addStmt($this->buildArraySetter($property_name, $setter_parameter, $hintable_classes, $child_schema->description));
+                $class->addStmt($this->buildArrayGetter($property_name, $this->sanitisePropertyName($property_name), $hintable_classes, $child_schema->description));
 
                 //Create a simple setter (hinted if possible)
             } else {
-                $class->addStmt($this->buildSetter($property_name, $setter_parameter, $types, $child_schema->description));
-                $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $types, $child_schema->description));
+                $class->addStmt($this->buildSetter($property_name, $setter_parameter, $hintable_classes, $child_schema->description));
+                $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $hintable_classes, $child_schema->description));
             }
 
             if(!empty($child_schema->default)){
@@ -220,8 +219,13 @@ class Generator {
             ->setDocComment($this->formatDocComment(['Array to store any allowed pattern properties', '@var array'])));
 
 
-        foreach($class_resolver->getForeignClasses() as $fq_class){
+        foreach($class_resolver->getForeignClasses($fq_model_class) as $fq_class){
             $use = $this->builder_factory->use($fq_class);
+
+            if(null !== $alias = $class_resolver->getClassAlias($fq_class)){
+                $use->as($alias);
+            }
+
             $namespace->addStmt($use);
         }
 
@@ -243,8 +247,7 @@ class Generator {
         $parameter = $this->builder_factory->param($property_name);
 
         if(count($types) === 1){
-            $relative = current($types);
-            $parameter->setTypeHint(sprintf('\\%s\\%s', $this->base_namespace, $relative));
+            $parameter->setTypeHint(current($types));
         }
 
         return $parameter;
