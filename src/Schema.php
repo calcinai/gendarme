@@ -313,7 +313,6 @@ class Schema {
     }
 
 
-
     /**
      * Used to get the actual type hints for generation.
      *
@@ -341,15 +340,15 @@ class Schema {
         }
 
         if(!empty($this->allof)){
-            $hints = array_merge($hints, $this->getHintsFromSchema($this, $include_scalar));
+            $hints = array_merge($hints, self::getHintsFromSchema($this, $include_scalar));
         }
 
         //Finally, if there's nothing from other properties, it's this.
         if(empty($hints)){
-            $hints = array_merge($hints, $this->getHintsFromSchema($this, $include_scalar));
+            $hints = array_merge($hints, self::getHintsFromSchema($this, $include_scalar));
         }
 
-        return $hints;
+        return array_unique($hints);
     }
 
 
@@ -358,13 +357,13 @@ class Schema {
      * @param $include_scalar
      * @return array
      */
-    private function getHintsFromSchema(Schema $item, $include_scalar){
+    public static function getHintsFromSchema(Schema $item, $include_scalar){
 
         if($item->type === Schema::TYPE_OBJECT) {
             return [$item->getRelativeClassName()];
         } elseif($include_scalar){
 
-            switch($this->type){
+            switch($item->type){
                 case self::TYPE_BOOLEAN:
                     return ['bool'];
                 case self::TYPE_NUMBER :

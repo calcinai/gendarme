@@ -164,22 +164,41 @@ class Generator {
 
         foreach($schema->getProperties() as $property_name => $child_schema){
 
+            //Actual classes that will be used in method type hinting
             $hintable_classes = array_map(function($class_name) use($class_resolver){
                 $fq_class = $class_resolver->addClass($class_name);
                 return $class_resolver->getClassAlias($fq_class);
             }, $child_schema->getHintableClasses());
 
-            $setter_parameter = $this->buildParameter($property_name, $hintable_classes);
+            //All types for the doc block - TODO - clean up
+            $all_types = array_map(function($type) use($class_resolver){
+                if(in_array($type, ['bool', 'int', 'string', 'mixed'])){
+                    return $type;
+                }
+
+                $fq_class = $class_resolver->addClass($type);
+                return $class_resolver->getClassAlias($fq_class);
+            }, $child_schema->getHintableClasses(true));
+
+
+            //Build parameter hint
+            if(count($all_types) === 1 && count($hintable_classes) === 1){
+                $parameter_hint = current($hintable_classes);
+            } else {
+                $parameter_hint = null;
+            }
+
+            $setter_parameter = $this->buildParameter($property_name, $parameter_hint);
 
             //Create the setters/adders for the properties that are arrays
             if($child_schema->type === Schema::TYPE_ARRAY){
-                $class->addStmt($this->buildArraySetter($property_name, $setter_parameter, $hintable_classes, $child_schema->description));
-                $class->addStmt($this->buildArrayGetter($property_name, $this->sanitisePropertyName($property_name), $hintable_classes, $child_schema->description));
+                $class->addStmt($this->buildArraySetter($property_name, $setter_parameter, $all_types, $child_schema->description));
+                $class->addStmt($this->buildArrayGetter($property_name, $this->sanitisePropertyName($property_name), $all_types, $child_schema->description));
 
                 //Create a simple setter (hinted if possible)
             } else {
-                $class->addStmt($this->buildSetter($property_name, $setter_parameter, $hintable_classes, $child_schema->description));
-                $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $hintable_classes, $child_schema->description));
+                $class->addStmt($this->buildSetter($property_name, $setter_parameter, $all_types, $child_schema->description));
+                $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $all_types, $child_schema->description));
             }
 
             if(!empty($child_schema->default)){
@@ -237,17 +256,17 @@ class Generator {
      * Unfortunately these need to be full since there's no easy way to know if they'll be conflicting in advance.
      *
      * @param $property_name
-     * @param $types
+     * @param null $type_hint
      * @return Param
      */
-    private function buildParameter($property_name, $types){
+    private function buildParameter($property_name, $type_hint = null){
 
         $property_name = $this->sanitisePropertyName($property_name);
 
         $parameter = $this->builder_factory->param($property_name);
 
-        if(count($types) === 1){
-            $parameter->setTypeHint(current($types));
+        if($type_hint !== null){
+            $parameter->setTypeHint($type_hint);
         }
 
         return $parameter;
@@ -285,7 +304,7 @@ class Generator {
             $setter_lines[] = $description;
         }
 
-        $setter_lines[] = sprintf('@param %s $%s',  implode("|\n *        ", $types), $parameter_name);
+        $setter_lines[] = sprintf('@param %s $%s',  implode("|", $types), $parameter_name);
         $setter_lines[] = '@return $this';
 
         $setter->setDocComment($this->formatDocComment($setter_lines));
@@ -294,10 +313,10 @@ class Generator {
     }
 
     /**
+     * @param $data_index
      * @param Param $parameter
      * @param string[] $types
      * @param string|null $description
-     *
      * @return Method
      */
     private function buildSetter($data_index, Param $parameter, $types, $description = null) {
@@ -324,7 +343,7 @@ class Generator {
             $setter_lines[] = $description;
         }
 
-        $setter_lines[] = sprintf('@param %s $%s', implode("|\n *        ", $types), $parameter_name);
+        $setter_lines[] = sprintf('@param %s $%s', implode("|", $types), $parameter_name);
         $setter_lines[] = '@return $this';
 
         $setter->setDocComment($this->formatDocComment($setter_lines));
@@ -354,7 +373,7 @@ class Generator {
             $getter_lines[] = $description;
         }
 
-        $getter_lines[] = sprintf('@return %s',  implode("|\n *         ", $types));
+        $getter_lines[] = sprintf('@return %s',  implode("|", $types));
 
         $getter->setDocComment($this->formatDocComment($getter_lines));
 
@@ -381,7 +400,7 @@ class Generator {
             $getter_lines[] = $description;
         }
 
-        $getter_lines[] = sprintf('@return %s[]',  implode("|\n *         ", $types));
+        $getter_lines[] = sprintf('@return %s[]',  implode("|", $types));
 
         $getter->setDocComment($this->formatDocComment($getter_lines));
 
