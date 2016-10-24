@@ -142,7 +142,7 @@ class Generator {
 
 
     /**
-     * Make the AST for a schema
+     * Make the AST for a schema 
      *
      * @param Schema $schema
      * @return \PhpParser\Node
