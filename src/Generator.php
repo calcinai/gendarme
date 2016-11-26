@@ -142,7 +142,7 @@ class Generator {
 
 
     /**
-     * Make the AST for a schema 
+     * Make the AST for a schema
      *
      * @param Schema $schema
      * @return \PhpParser\Node
@@ -289,11 +289,15 @@ class Generator {
         $setter = $this->builder_factory->method($method_name)->makePublic();
         $setter->addParam($parameter);
 
-        $setter->addStmt(new Expr\MethodCall(
-                new Expr\Variable('this'), 'addInternalData', [
-                new Node\Scalar\String_($data_index),
-                new Expr\Variable($parameter_name)
-            ])
+        //$this->property['prop'][] = &$property;
+        $setter->addStmt(new Expr\AssignRef(
+                new Expr\ArrayDimFetch(
+                    new Expr\ArrayDimFetch(
+                        new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
+                        new Node\Scalar\String_($data_index)
+                    )
+                ),
+                new Expr\Variable($parameter_name))
         );
 
         //return $this;
@@ -327,11 +331,13 @@ class Generator {
         $setter = $this->builder_factory->method($method_name)->makePublic();
         $setter->addParam($parameter);
 
-        $setter->addStmt(new Expr\MethodCall(
-            new Expr\Variable('this'), 'setInternalData', [
-                new Node\Scalar\String_($data_index),
-                new Expr\Variable($parameter_name)
-            ])
+        //$this->property = $property;
+        $setter->addStmt(new Expr\Assign(
+                new Expr\ArrayDimFetch(
+                    new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
+                    new Node\Scalar\String_($data_index)
+                ),
+                new Expr\Variable($parameter_name))
         );
 
         //return $this;
