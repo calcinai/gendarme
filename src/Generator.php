@@ -163,6 +163,7 @@ class Generator {
         }
 
         $property_hints = [];
+        $property_enums = [];
         foreach($schema->getProperties() as $property_name => $child_schema){
 
             //Actual classes that will be used in method type hinting
@@ -173,6 +174,11 @@ class Generator {
 
             //This should all line up.
             $property_hints[$property_name] = $child_schema->getHintableClasses();
+
+            //Append the enums
+            if(!empty($child_schema->getEnum())){
+                $property_enums[$property_name] = $child_schema->getEnum();
+            }
 
             //All types for the doc block - TODO - clean up
             $all_types = array_map(function($type) use($class_resolver){
@@ -218,6 +224,12 @@ class Generator {
             ->setDefault($default_values)
             ->setDocComment($this->formatDocComment(['Array to store schema data and default values', '@var array'])));
 
+
+        $class->addStmt($this->builder_factory->property('enums')
+            ->makeProtected()
+            ->makeStatic()
+            ->setDefault($property_enums)
+            ->setDocComment($this->formatDocComment(['Any enums that exist on this object', '@var array'])));
 
         $class->addStmt($this->builder_factory->property('properties')
             ->makeProtected()
@@ -301,16 +313,15 @@ class Generator {
         $setter = $this->builder_factory->method($method_name)->makePublic();
         $setter->addParam($parameter);
 
-        //$this->property['prop'][] = &$property;
-        $setter->addStmt(new Expr\AssignRef(
-                new Expr\ArrayDimFetch(
-                    new Expr\ArrayDimFetch(
-                        new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
-                        new Node\Scalar\String_($data_index)
-                    )
-                ),
-                new Expr\Variable($parameter_name))
-        );
+        //$this->add('$data_index', $property)
+        $setter->addStmt(new Expr\MethodCall(
+            new Expr\Variable('this'),
+            'add',
+            [
+                new Node\Scalar\String_($data_index),
+                new Expr\Variable($parameter_name)
+            ]
+        ));
 
         //return $this;
         $setter->addStmt(new Stmt\Return_(new Expr\Variable('this')));
@@ -343,14 +354,15 @@ class Generator {
         $setter = $this->builder_factory->method($method_name)->makePublic();
         $setter->addParam($parameter);
 
-        //$this->property = $property;
-        $setter->addStmt(new Expr\Assign(
-                new Expr\ArrayDimFetch(
-                    new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
-                    new Node\Scalar\String_($data_index)
-                ),
-                new Expr\Variable($parameter_name))
-        );
+        //$this->set('$data_index', $property)
+        $setter->addStmt(new Expr\MethodCall(
+            new Expr\Variable('this'),
+            'set',
+            [
+                new Node\Scalar\String_($data_index),
+                new Expr\Variable($parameter_name)
+            ]
+        ));
 
         //return $this;
         $setter->addStmt(new Stmt\Return_(new Expr\Variable('this')));
@@ -378,10 +390,15 @@ class Generator {
     private function buildGetter($data_index, $property_name, $types, $description = null) {
 
         $getter = $this->builder_factory->method(sprintf('get%s', $this->inflector->camelize($property_name)))->makePublic();
+
+        //$this->get('$data_index')
         $getter->addStmt(new Stmt\Return_(
-                new Expr\ArrayDimFetch(
-                    new Expr\PropertyFetch(new Expr\Variable('this'), 'data'),
-                    new Node\Scalar\String_($data_index)
+                new Expr\MethodCall(
+                    new Expr\Variable('this'),
+                    'get',
+                    [
+                        new Node\Scalar\String_($data_index)
+                    ]
                 )
             )
         );
