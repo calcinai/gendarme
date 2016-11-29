@@ -8,16 +8,17 @@ namespace Calcinai\Gendarme;
 
 use ICanBoogie\Inflector;
 
-class Schema {
+class Schema
+{
 
 
-    const TYPE_ARRAY   = 'array';
-    const TYPE_OBJECT  = 'object';
+    const TYPE_ARRAY = 'array';
+    const TYPE_OBJECT = 'object';
     const TYPE_BOOLEAN = 'boolean';
     const TYPE_INTEGER = 'integer';
-    const TYPE_NULL    = 'null';
-    const TYPE_NUMBER  = 'number';
-    const TYPE_STRING  = 'string';
+    const TYPE_NULL = 'null';
+    const TYPE_NUMBER = 'number';
+    const TYPE_STRING = 'string';
 
 
     public $id;
@@ -88,13 +89,17 @@ class Schema {
      */
     public $additional_properties;
 
-
+    /**
+     * @var array
+     */
+    private $required = [];
 
     private $namespace;
     private $class_name;
     private $relative_class_name;
 
-    public function __construct($id){
+    public function __construct($id)
+    {
         $this->id = $id;
 
         $this->computeClassName();
@@ -105,14 +110,15 @@ class Schema {
      * http://json-schema.org/draft-04/schema -> Org\JsonSchema\Draft04\Schema
      * file://x/y/schema.json > Schema
      */
-    private function computeClassName() {
+    private function computeClassName()
+    {
 
         /** @noinspection PhpUnusedLocalVariableInspection */
         list($path, $fragment) = explode('#', $this->id, 2);
 
         $parsed = parse_url($path);
 
-        if(isset($parsed['host'])) {
+        if (isset($parsed['host'])) {
             $relative_class = sprintf('%s/', implode('/', array_reverse(explode('.', $parsed['host']))));
 
             $pathinfo = pathinfo($parsed['path']);
@@ -122,7 +128,7 @@ class Schema {
             $relative_class = '';//pathinfo($parsed['path'], PATHINFO_FILENAME);
         }
 
-        if(!empty($fragment)) {
+        if (!empty($fragment)) {
             $relative_class .= ltrim($fragment, '/');
         }
 
@@ -140,12 +146,14 @@ class Schema {
     }
 
 
-    public function addProperty($property_name, Schema $schema){
+    public function addProperty($property_name, Schema $schema)
+    {
         $this->properties[$property_name] = $schema;
         return $this;
     }
 
-    public function addPatternProperty($property_name, Schema $schema) {
+    public function addPatternProperty($property_name, Schema $schema)
+    {
         $this->pattern_properties[$property_name] = $schema;
         return $this;
     }
@@ -154,7 +162,8 @@ class Schema {
      * @param Schema|bool $schema
      * @return $this
      */
-    public function setAdditionalProperties($schema) {
+    public function setAdditionalProperties($schema)
+    {
         $this->additional_properties = $schema;
         return $this;
     }
@@ -163,7 +172,8 @@ class Schema {
      * @param string $description
      * @return Schema
      */
-    public function setDescription($description) {
+    public function setDescription($description)
+    {
         $this->description = $description;
         return $this;
     }
@@ -172,7 +182,8 @@ class Schema {
      * @param string $title
      * @return Schema
      */
-    public function setTitle($title) {
+    public function setTitle($title)
+    {
         $this->title = $title;
         return $this;
     }
@@ -181,7 +192,8 @@ class Schema {
      * @param string $type
      * @return Schema
      */
-    public function setType($type) {
+    public function setType($type)
+    {
         $this->type = $type;
         return $this;
     }
@@ -190,7 +202,8 @@ class Schema {
      * @param Schema|Schema[] $schema
      * @return Schema
      */
-    public function setItems($schema) {
+    public function setItems($schema)
+    {
         $this->items = $schema;
         return $this;
     }
@@ -199,7 +212,8 @@ class Schema {
      * @param Schema|bool $items
      * @return $this
      */
-    public function setAdditionalItems($items) {
+    public function setAdditionalItems($items)
+    {
         $this->additional_items = $items;
         return $this;
     }
@@ -208,7 +222,8 @@ class Schema {
      * @param Schema $schema
      * @return Schema
      */
-    public function addOneOf(Schema $schema) {
+    public function addOneOf(Schema $schema)
+    {
         $this->oneof[] = &$schema;
         return $this;
     }
@@ -217,7 +232,8 @@ class Schema {
      * @param Schema $schema
      * @return Schema
      */
-    public function addAnyOf(Schema $schema) {
+    public function addAnyOf(Schema $schema)
+    {
         $this->anyof[] = &$schema;
         return $this;
     }
@@ -226,7 +242,8 @@ class Schema {
      * @param Schema $schema
      * @return Schema
      */
-    public function addAllOf(Schema $schema) {
+    public function addAllOf(Schema $schema)
+    {
         $this->allof[] = &$schema;
         return $this;
     }
@@ -235,7 +252,8 @@ class Schema {
      * @param mixed $default
      * @return Schema
      */
-    public function setDefault($default) {
+    public function setDefault($default)
+    {
         $this->default = $default;
         return $this;
     }
@@ -244,7 +262,8 @@ class Schema {
      * @param mixed $enum
      * @return Schema
      */
-    public function setEnum($enum) {
+    public function setEnum($enum)
+    {
         $this->enum = $enum;
         return $this;
     }
@@ -252,7 +271,8 @@ class Schema {
     /**
      * @return mixed
      */
-    public function getEnum() {
+    public function getEnum()
+    {
         return $this->enum;
     }
 
@@ -261,7 +281,8 @@ class Schema {
      * @param $class
      * @return $this
      */
-    public function setClassName($class) {
+    public function setClassName($class)
+    {
         $this->class_name = $class;
         return $this;
     }
@@ -269,14 +290,16 @@ class Schema {
     /**
      * @return mixed
      */
-    public function getClassName(){
+    public function getClassName()
+    {
         return $this->class_name;
     }
 
     /**
      * @return mixed
      */
-    public function getRelativeClassName(){
+    public function getRelativeClassName()
+    {
         return $this->relative_class_name;
     }
 
@@ -284,34 +307,66 @@ class Schema {
      * @param $class_name
      * @return $this
      */
-    public function setRelativeClassName($class_name) {
+    public function setRelativeClassName($class_name)
+    {
         $this->relative_class_name = $class_name;
         return $this;
     }
 
 
-    public function getNamespace(){
+    public function getNamespace()
+    {
         return $this->namespace;
     }
 
 
-    public function getProperties() {
+    public function getProperties()
+    {
         return $this->properties;
     }
 
-    public function getAdditionalProperties() {
+    public function getAdditionalProperties()
+    {
         return $this->additional_properties;
     }
 
 
-    public function getItems() {
+    public function getItems()
+    {
         return $this->items;
     }
 
-    public function getAdditionalItems() {
+    public function getAdditionalItems()
+    {
         return $this->additional_items;
     }
 
+    public function isRequired($property_name)
+    {
+        return in_array($property_name, $this->required);
+    }
+
+
+    public function setRequired($required)
+    {
+        $this->required = $required;
+        return $this;
+    }
+
+    public function addRequired($required)
+    {
+        if(!is_array($required)) {
+            $required = [$required];
+
+        }
+
+        $this->required = array_merge($this->required, $required);
+    }
+
+    public function getRequired()
+    {
+        return $this->required;
+    }
 
     /**
      * Used to get the actual type hints for generation.
@@ -321,30 +376,31 @@ class Schema {
      * @param bool $include_scalar
      * @return array
      */
-    public function getHintableClasses($include_scalar = false){
+    public function getHintableClasses($include_scalar = false)
+    {
 
         $hints = [];
 
-        if($this->items instanceof Schema){
+        if ($this->items instanceof Schema) {
             $hints = $this->items->getHintableClasses($include_scalar);
         }
 
         //No sane schema would have all of these in it together, would it?
 
-        foreach($this->anyof as $item) {
+        foreach ($this->anyof as $item) {
             $hints = array_merge($hints, $item->getHintableClasses($include_scalar));
         }
 
-        foreach($this->oneof as $item) {
-            $hints =  array_merge($hints, $item->getHintableClasses($include_scalar));
+        foreach ($this->oneof as $item) {
+            $hints = array_merge($hints, $item->getHintableClasses($include_scalar));
         }
 
-        if(!empty($this->allof)){
+        if (!empty($this->allof)) {
             $hints = array_merge($hints, self::getHintsFromSchema($this, $include_scalar));
         }
 
         //Finally, if there's nothing from other properties, it's this.
-        if(empty($hints)){
+        if (empty($hints)) {
             $hints = array_merge($hints, self::getHintsFromSchema($this, $include_scalar));
         }
 
@@ -357,13 +413,14 @@ class Schema {
      * @param $include_scalar
      * @return array
      */
-    public static function getHintsFromSchema(Schema $item, $include_scalar){
+    public static function getHintsFromSchema(Schema $item, $include_scalar)
+    {
 
-        if($item->type === Schema::TYPE_OBJECT) {
+        if ($item->type === Schema::TYPE_OBJECT) {
             return [$item->getRelativeClassName()];
-        } elseif($include_scalar){
+        } elseif ($include_scalar) {
 
-            switch($item->type){
+            switch ($item->type) {
                 case self::TYPE_BOOLEAN:
                     return ['bool'];
                 case self::TYPE_NUMBER :

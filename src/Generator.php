@@ -162,6 +162,7 @@ class Generator {
             $class->setDocComment($this->formatDocComment([$schema->description]));
         }
 
+        $property_hints = [];
         foreach($schema->getProperties() as $property_name => $child_schema){
 
             //Actual classes that will be used in method type hinting
@@ -169,6 +170,9 @@ class Generator {
                 $fq_class = $class_resolver->addClass($class_name);
                 return $class_resolver->getClassAlias($fq_class);
             }, $child_schema->getHintableClasses());
+
+            //This should all line up.
+            $property_hints[$property_name] = $child_schema->getHintableClasses();
 
             //All types for the doc block - TODO - clean up
             $all_types = array_map(function($type) use($class_resolver){
@@ -201,7 +205,8 @@ class Generator {
                 $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $all_types, $child_schema->description));
             }
 
-            if(!empty($child_schema->default)){
+            //The isRequired check should possibly go in the parser.
+            if(!empty($child_schema->default) && $schema->isRequired($property_name)){
                 $default_values[$property_name] = $child_schema->default;
             }
 
@@ -212,6 +217,13 @@ class Generator {
             ->makeProtected()
             ->setDefault($default_values)
             ->setDocComment($this->formatDocComment(['Array to store schema data and default values', '@var array'])));
+
+
+        $class->addStmt($this->builder_factory->property('properties')
+            ->makeProtected()
+            ->makeStatic()
+            ->setDefault($property_hints)
+            ->setDocComment($this->formatDocComment(['Properties and types', '@var array'])));
 
 
         if($schema->additional_properties instanceof Schema){

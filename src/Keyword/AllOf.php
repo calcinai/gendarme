@@ -25,6 +25,8 @@ class AllOf extends AbstractKeyword {
             $allof_schema_id = sprintf('%s/allOf/%s', $schema->id, $index);
 
             $child_schema = $parser->parseNode($allof_schema_id, $allof);
+            $child_schema->addRequired($schema->getRequired());
+
             $schema->addAllOf($child_schema);
         }
 

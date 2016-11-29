@@ -124,6 +124,7 @@ class Parser {
                 case 'minProperties':
                     break;
                 case 'required':
+                    Keyword\Required::parse($this, $schema, $node);
                     break;
                 case 'additionalProperties':
                     Keyword\AdditionalProperties::parse($this, $schema, $node);

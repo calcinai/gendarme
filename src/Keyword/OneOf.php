@@ -25,6 +25,8 @@ class OneOf extends AbstractKeyword {
             $oneof_schema_id = sprintf('%s/oneOf/%s', $schema->id, $index);
 
             $child_schema = $parser->parseNode($oneof_schema_id, $oneof);
+            $child_schema->addRequired($schema->getRequired());
+
             $schema->addOneOf($child_schema);
         }
 

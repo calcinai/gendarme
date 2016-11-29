@@ -10,7 +10,7 @@ namespace Calcinai\Gendarme\Keyword;
 use Calcinai\Gendarme\Schema;
 use Calcinai\Gendarme\Parser;
 
-class Enum extends AbstractKeyword {
+class Required extends AbstractKeyword {
 
     /**
      * @param Parser $parser
@@ -19,12 +19,7 @@ class Enum extends AbstractKeyword {
      * @return Schema
      */
     public static function parse(Parser $parser, Schema $schema, $node) {
-        $schema->setEnum($node);
-
-        //Make things easier for the user - if there's only one value allowed, it may as well be set from the start.
-        //Potentially should see if it is required first.
-        if(count($node) === 1){
-            $schema->setDefault(current($node));
-        }
+        //should't destroy what might already be there
+        $schema->addRequired($node);
     }
 }

@@ -25,6 +25,8 @@ class AnyOf extends AbstractKeyword {
             $anyof_schema_id = sprintf('%s/anyOf/%s', $schema->id, $index);
 
             $child_schema = $parser->parseNode($anyof_schema_id, $anyof);
+            $child_schema->addRequired($schema->getRequired());
+
             $schema->addAnyOf($child_schema);
         }
 
