@@ -6,7 +6,7 @@
 
 namespace Calcinai\Gendarme\Templates;
 
-abstract class BaseSchema implements \JsonSerializable {
+abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerializable {
 
     protected $data;
 
@@ -243,4 +243,19 @@ abstract class BaseSchema implements \JsonSerializable {
     }
 
 
-}
+     /**
+      * Retrieve an external iterator
+      */
+     public function getIterator()
+     {
+         return new \ArrayIterator($this->data);
+     }
+
+     /**
+      * Count elements of an object
+     */
+     public function count()
+     {
+         return count($this->data);
+     }
+ }
