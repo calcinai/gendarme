@@ -25,7 +25,7 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
     protected static $additional_properties = [];
 
 
-    public function __construct($data)
+    public function __construct($data = [])
     {
         $this->parseData($data);
     }
@@ -239,10 +239,10 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
     }
 
     /**
-     * @param null $data
+     * @param array $data
      * @return static
      */
-    public static function create($data = null) {
+    public static function create($data = []) {
         return new static($data);
     }
 
