@@ -253,6 +253,11 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
             /** @var self $class */
             $class = self::getFQCN($type);
 
+            if(!class_exists($class)){
+                settype($object, $type);
+                return $object;
+            }
+
             try {
                 return $class::create($object);
             } catch (\InvalidArgumentException $e) {
