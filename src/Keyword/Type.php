@@ -16,7 +16,7 @@ class Type extends AbstractKeyword {
      * @param Parser $parser
      * @param Schema $schema
      * @param $node
-     * @return Schema
+     * @return void|Schema
      */
     public static function parse(Parser $parser, Schema $schema, $node) {
 

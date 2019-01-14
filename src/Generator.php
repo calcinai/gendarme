@@ -120,7 +120,7 @@ class Generator
         $this->writeClass($this->base_schema_class, $base_schema_namespace);
 
         foreach ($schemas as $schema) {
-            if ($schema->type !== Schema::TYPE_OBJECT) {
+            if (!$schema->shouldBeDefinition()) {
                 continue;
             }
 
@@ -179,7 +179,7 @@ class Generator
             }, $child_schema->getHintableClasses());
 
             //This should all line up.
-            $property_hints[$property_name] = $child_schema->getHintableClasses();
+            $property_hints[$property_name] = $child_schema->getHintableClasses(true);
 
             //Append the enums
             if (!empty($child_schema->getEnum())) {
@@ -188,7 +188,7 @@ class Generator
 
             //All types for the doc block - TODO - clean up
             $all_types = array_map(function ($type) use ($class_resolver) {
-                if (in_array($type, ['bool', 'int', 'string', 'mixed'])) {
+                if (in_array($type, Schema::$ALL_TYPES)) {
                     return $type;
                 }
 
@@ -247,7 +247,7 @@ class Generator
 
 
         if ($schema->additional_properties instanceof Schema) {
-            $additional_properties = $schema->additional_properties->getHintableClasses();
+            $additional_properties = $schema->additional_properties->getHintableClasses(true);
         } else {
             $additional_properties = $schema->additional_properties;
         }
@@ -259,7 +259,7 @@ class Generator
             ->setDocComment($this->formatDocComment(['Allowed additional properties', '@var array'])));
 
         $parsed_pattern_props = array_map(function (Schema $child_schema) {
-            return $child_schema->getHintableClasses();
+            return $child_schema->getHintableClasses(true);
         }, $schema->pattern_properties);
 
 
@@ -343,6 +343,7 @@ class Generator
 
         $setter_lines[] = sprintf('@param %s $%s', implode("|", $types), $parameter_name);
         $setter_lines[] = '@return $this';
+        $setter_lines[] = '@throws \Exception';
 
         $setter->setDocComment($this->formatDocComment($setter_lines));
 
@@ -386,6 +387,7 @@ class Generator
 
         $setter_lines[] = sprintf('@param %s $%s', implode("|", $types), $parameter_name);
         $setter_lines[] = '@return $this';
+        $setter_lines[] = '@throws \Exception';
 
         $setter->setDocComment($this->formatDocComment($setter_lines));
 
@@ -394,6 +396,7 @@ class Generator
 
     /**
      * @param $data_index
+     * @param $property_name
      * @param string[] $types
      * @param string|null $description
      * @return Method

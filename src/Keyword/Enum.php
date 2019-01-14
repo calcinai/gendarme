@@ -16,7 +16,7 @@ class Enum extends AbstractKeyword {
      * @param Parser $parser
      * @param Schema $schema
      * @param $node
-     * @return Schema
+     * @return void
      */
     public static function parse(Parser $parser, Schema $schema, $node) {
         $schema->setEnum($node);

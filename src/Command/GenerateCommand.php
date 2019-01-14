@@ -4,6 +4,7 @@
  * @package    gendarme
  * @author     Michael Calcinai <michael@calcin.ai>
  */
+
 namespace Calcinai\Gendarme\Command;
 
 use Calcinai\Gendarme\Generator;
@@ -15,9 +16,11 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class GenerateCommand extends Command {
+class GenerateCommand extends Command
+{
 
-    protected function configure() {
+    protected function configure()
+    {
         $this
             ->setName('generate')
             ->setDescription('Generate classes representing the JSON schema')
@@ -44,21 +47,25 @@ class GenerateCommand extends Command {
                 InputOption::VALUE_OPTIONAL,
                 'The name of the root generated schema',
                 'Schema'
-            )
-        ;
+            );
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output){
-
-
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @return int|void|null
+     * @throws \ReflectionException
+     */
+    protected function execute(InputInterface $input, OutputInterface $output)
+    {
         $schema_file = $input->getArgument('schema');
         $output_dir = $input->getArgument('output');
 
-        if(!file_exists($schema_file)){
+        if (!file_exists($schema_file)) {
             throw new InvalidArgumentException('Invalid schema provided');
         }
 
-        if(!file_exists($output_dir)){
+        if (!file_exists($output_dir)) {
             throw new InvalidArgumentException('Invalid output directory provided');
         }
 

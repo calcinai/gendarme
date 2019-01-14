@@ -10,15 +10,14 @@ use ICanBoogie\Inflector;
 
 class Schema
 {
-
-
-    const TYPE_ARRAY = 'array';
-    const TYPE_OBJECT = 'object';
+    const TYPE_ARRAY   = 'array';
+    const TYPE_OBJECT  = 'object';
     const TYPE_BOOLEAN = 'boolean';
     const TYPE_INTEGER = 'integer';
-    const TYPE_NULL = 'null';
-    const TYPE_NUMBER = 'number';
-    const TYPE_STRING = 'string';
+    const TYPE_NULL    = 'null';
+    const TYPE_NUMBER  = 'number';
+    const TYPE_STRING  = 'string';
+    const TYPE_MIXED   = 'mixed';
 
 
     public $id;
@@ -97,6 +96,17 @@ class Schema
     private $namespace;
     private $class_name;
     private $relative_class_name;
+
+    public static $ALL_TYPES = [
+        self::TYPE_ARRAY,
+        self::TYPE_OBJECT,
+        self::TYPE_BOOLEAN,
+        self::TYPE_INTEGER,
+        self::TYPE_NULL,
+        self::TYPE_NUMBER,
+        self::TYPE_STRING,
+        self::TYPE_MIXED
+    ];
 
     public function __construct($id)
     {
@@ -355,7 +365,7 @@ class Schema
 
     public function addRequired($required)
     {
-        if(!is_array($required)) {
+        if (!is_array($required)) {
             $required = [$required];
 
         }
@@ -366,6 +376,16 @@ class Schema
     public function getRequired()
     {
         return $this->required;
+    }
+
+    /**
+     * If this  item should be represented as a definition/class
+     *
+     * @return bool
+     */
+    public function shouldBeDefinition()
+    {
+        return $this->type === Schema::TYPE_OBJECT && !is_numeric($this->getClassName());
     }
 
     /**
@@ -416,18 +436,23 @@ class Schema
     public static function getHintsFromSchema(Schema $item, $include_scalar)
     {
 
-        if ($item->type === Schema::TYPE_OBJECT) {
+        //If it's a definition object, return that else the php type
+        if ($item->shouldBeDefinition()) {
             return [$item->getRelativeClassName()];
         } elseif ($include_scalar) {
 
+
+            //This is needed to catch differences between json and php types
             switch ($item->type) {
-                case self::TYPE_BOOLEAN:
-                    return ['bool'];
-                case self::TYPE_NUMBER :
-                case self::TYPE_INTEGER:
-                    return ['int'];
                 case self::TYPE_STRING :
-                    return ['string'];
+                case self::TYPE_OBJECT :
+                case self::TYPE_ARRAY :
+                case self::TYPE_NULL:
+                case self::TYPE_BOOLEAN:
+                case self::TYPE_INTEGER:
+                    return [$item->type];
+                case self::TYPE_NUMBER :
+                    return [self::TYPE_INTEGER];
                 default:
                     return ['mixed'];
             }
