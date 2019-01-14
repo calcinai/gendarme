@@ -16,11 +16,11 @@ class Default_ extends AbstractKeyword {
      * @param Parser $parser
      * @param Schema $schema
      * @param $node
-     * @return Schema
+     * @return void|Schema
      */
     public static function parse(Parser $parser, Schema $schema, $node) {
 
-        if(!is_scalar($node)){
+        if(is_scalar($node)){
             return;
         }
 
