@@ -6,7 +6,8 @@
 
 namespace Calcinai\Gendarme\Templates;
 
-abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerializable {
+abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerializable
+{
 
     protected $data;
 
@@ -39,7 +40,8 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
      * @return $this
      * @throws \Exception
      */
-    public function set($property_name, $value){
+    public function set($property_name, $value)
+    {
 
         $this->validateProperty($property_name, $value);
         $this->data[$property_name] = $value;
@@ -56,7 +58,8 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
      * @return $this
      * @throws \Exception
      */
-    public function add($property_name, $value){
+    public function add($property_name, $value)
+    {
 
         $this->validateProperty($property_name, $value);
         $this->data[$property_name][] =& $value;
@@ -71,10 +74,10 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
      * @param $property_name
      * @return mixed
      */
-    public function get($property_name){
+    public function get($property_name)
+    {
         return $this->data[$property_name];
     }
-
 
     /**
      * Property isset
@@ -82,8 +85,21 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
      * @param $property_name
      * @return bool
      */
-    public function has($property_name){
+    public function has($property_name)
+    {
         return isset($this->data[$property_name]);
+    }
+
+    /**
+     * Property unset
+     *
+     * @param $property_name
+     * @return $this
+     */
+    public function remove($property_name)
+    {
+        unset($this->data[$property_name]);
+        return $this;
     }
 
     /**
@@ -91,65 +107,66 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
      * @param $value
      * @return bool
      */
-    private function validateProperty($property_name, $value) {
+    private function validateProperty($property_name, $value)
+    {
 
         //First check enums
-        if(isset(static::$enums[$property_name]) && !in_array($value, static::$enums[$property_name])){
+        if (isset(static::$enums[$property_name]) && !in_array($value, static::$enums[$property_name])) {
             throw new \InvalidArgumentException(sprintf('Value for %s is not specified in the enum', $property_name));
         }
 
         //Test regular properties
-        if(isset(static::$properties[$property_name])) {
+        if (isset(static::$properties[$property_name])) {
 
             //There's no way to constrain it at this point
-            if(empty(static::$properties[$property_name])){
+            if (empty(static::$properties[$property_name])) {
                 return true;
             }
 
-            foreach(static::$properties[$property_name] as $allowed_class) {
+            foreach (static::$properties[$property_name] as $allowed_class) {
                 $fq_class = self::getFQCN($allowed_class);
-                if($value instanceof $fq_class) {
+                if ($value instanceof $fq_class) {
                     return true;
                 }
             }
         }
 
         //Then test additional
-        if(is_bool(static::$additional_properties) && static::$additional_properties) {
+        if (is_bool(static::$additional_properties) && static::$additional_properties) {
             return true;
-        } elseif(is_array(static::$additional_properties)) {
-            if(empty(static::$additional_properties)){
+        } elseif (is_array(static::$additional_properties)) {
+            if (empty(static::$additional_properties)) {
                 return true;
             }
 
-            foreach(static::$additional_properties as $allowed_class) {
+            foreach (static::$additional_properties as $allowed_class) {
                 $fq_class = self::getFQCN($allowed_class);
-                if($value instanceof $fq_class) {
+                if ($value instanceof $fq_class) {
                     return true;
                 }
             }
         }
 
         //Then test pattern
-        foreach(static::$pattern_properties as $pattern => $types) {
+        foreach (static::$pattern_properties as $pattern => $types) {
 
             //Find an unused delimiter
-            foreach(['/', '#', '+', '~', '%'] as $delimiter) {
-                if(strpos($pattern, $delimiter) === false) {
+            foreach (['/', '#', '+', '~', '%'] as $delimiter) {
+                if (strpos($pattern, $delimiter) === false) {
                     break;
                 }
             }
 
             /** @noinspection PhpUndefinedVariableInspection ...well, it is */
-            if(preg_match("$delimiter$pattern$delimiter", $property_name)) {
+            if (preg_match("$delimiter$pattern$delimiter", $property_name)) {
                 //If there's no rule, success anyway
-                if(!isset($types[0])) {
+                if (!isset($types[0])) {
                     return true;
                 }
 
-                foreach($types as $allowed_class) {
+                foreach ($types as $allowed_class) {
                     $fq_class = self::getFQCN($allowed_class);
-                    if($value instanceof $fq_class) {
+                    if ($value instanceof $fq_class) {
                         return true;
                     }
                 }
@@ -176,22 +193,22 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
             $types_to_try = [];
 
             //Collect regular props
-            if(isset(static::$properties[$property_name])) {
+            if (isset(static::$properties[$property_name])) {
                 $types_to_try = array_merge($types_to_try, static::$properties[$property_name]);
             }
 
             //Collect pattern props
-            foreach(static::$pattern_properties as $pattern_property){
+            foreach (static::$pattern_properties as $pattern_property) {
                 $types_to_try = array_merge($types_to_try, $pattern_property);
             }
 
             //Collect additional props
-            if(is_array(static::$additional_properties)){
+            if (is_array(static::$additional_properties)) {
                 $types_to_try = array_merge($types_to_try, static::$additional_properties);
             }
 
-            if(is_array($property)){
-                foreach($property as $property_element){
+            if (is_array($property)) {
+                foreach ($property as $property_element) {
                     $this->add($property_name, self::tryToCast($types_to_try, $property_element));
                 }
             } else {
@@ -207,14 +224,15 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
      * @param $object
      * @return BaseSchema
      */
-    private static function tryToCast($types_to_try, $object){
+    private static function tryToCast($types_to_try, $object)
+    {
 
         //If there are no types, return as-is.
-        if(empty($types_to_try)){
+        if (empty($types_to_try)) {
             return $object;
         }
 
-        foreach($types_to_try as $type) {
+        foreach ($types_to_try as $type) {
             /** @var self $class */
             $class = self::getFQCN($type);
 
@@ -234,7 +252,8 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
      * @param $relative_class
      * @return string
      */
-    protected static function getFQCN($relative_class){
+    protected static function getFQCN($relative_class)
+    {
         return sprintf('\\%s\\%s', __NAMESPACE__, $relative_class);
     }
 
@@ -242,31 +261,33 @@ abstract class BaseSchema implements \IteratorAggregate, \Countable, \JsonSerial
      * @param array $data
      * @return static
      */
-    public static function create($data = []) {
+    public static function create($data = [])
+    {
         return new static($data);
     }
 
     /**
      * @return mixed
      */
-    function jsonSerialize() {
+    function jsonSerialize()
+    {
         return $this->data;
     }
 
 
-     /**
-      * Retrieve an external iterator
-      */
-     public function getIterator()
-     {
-         return new \ArrayIterator($this->data);
-     }
-
-     /**
-      * Count elements of an object
+    /**
+     * Retrieve an external iterator
      */
-     public function count()
-     {
-         return count($this->data);
-     }
- }
+    public function getIterator()
+    {
+        return new \ArrayIterator($this->data);
+    }
+
+    /**
+     * Count elements of an object
+     */
+    public function count()
+    {
+        return count($this->data);
+    }
+}
