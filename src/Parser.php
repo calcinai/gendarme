@@ -13,7 +13,7 @@ use JsonSchema\SchemaStorage;
 class Parser {
 
     private $json_schema_path;
-    private $schema_stroage;
+    private $schema_storage;
 
     /**
      * All parsed schemas.  This will include all schemas/nodes that can be found.
@@ -31,8 +31,8 @@ class Parser {
 
         $this->json_schema_path = sprintf('file://%s', realpath($schema_file));
 
-        $this->schema_stroage = new SchemaStorage();
-        $this->schema_stroage->addSchema($this->json_schema_path);
+        $this->schema_storage = new SchemaStorage();
+        $this->schema_storage->addSchema($this->json_schema_path);
 
     }
 
@@ -45,7 +45,7 @@ class Parser {
     public function parse(){
 
         $root_schema_id = sprintf('%s#', $this->json_schema_path);
-        $root_schema = $this->schema_stroage->resolveRef($root_schema_id);
+        $root_schema = $this->schema_storage->resolveRef($root_schema_id);
 
         return $this->parseNode($root_schema_id, $root_schema);
     }
@@ -68,7 +68,7 @@ class Parser {
             $this->addSchemaAlias($json_schema_id, $json_schema->{'$ref'});
 
             $json_schema_id = $json_schema->{'$ref'};
-            $json_schema = $this->schema_stroage->resolveRef($json_schema_id);
+            $json_schema = $this->schema_storage->resolveRef($json_schema_id);
         }
 
         $schema = $this->getSchema($json_schema_id);

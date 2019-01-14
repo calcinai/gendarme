@@ -25,25 +25,26 @@ use PhpParser\ParserFactory;
  * Class Generator
  * @package Calcinai\Gendarme
  */
-class Generator {
+class Generator
+{
 
     /**
      * The base (user-defined) namespace
-     * 
+     *
      * @var string
      */
     private $base_namespace;
 
     /**
      * The base class that al schemas extend
-     * 
+     *
      * @var string
      */
     private $base_schema_class;
 
     /**
      * Directory to write the output to
-     * 
+     *
      * @var
      */
     private $output_dir;
@@ -51,14 +52,14 @@ class Generator {
 
     /**
      * Builder for the components of the generated nodes
-     * 
+     *
      * @var BuilderFactory
      */
     private $builder_factory;
 
     /**
      * Output printer/formatter.  Converts AST to PHP
-     * 
+     *
      * @var Printer
      */
     private $printer;
@@ -75,7 +76,8 @@ class Generator {
      * @param $base_namespace
      * @param $output_dir
      */
-    public function __construct($base_namespace, $output_dir) {
+    public function __construct($base_namespace, $output_dir)
+    {
         $this->base_namespace = $base_namespace;
         $this->output_dir = $output_dir;
 
@@ -91,8 +93,10 @@ class Generator {
     /**
      *
      * @param Schema[] $schemas
+     * @throws \ReflectionException
      */
-    public function generateClasses($schemas){
+    public function generateClasses($schemas)
+    {
 
         $parser = (new ParserFactory())->create(ParserFactory::PREFER_PHP7);
 
@@ -103,8 +107,8 @@ class Generator {
         $this->base_schema_class = $base_schema_rc->getShortName();
 
         //Find the namespace node
-        foreach($base_schema_file as $base_schema_namespace){
-            if($base_schema_namespace instanceof Stmt\Namespace_){
+        foreach ($base_schema_file as $base_schema_namespace) {
+            if ($base_schema_namespace instanceof Stmt\Namespace_) {
                 break;
             }
         }
@@ -115,8 +119,8 @@ class Generator {
 
         $this->writeClass($this->base_schema_class, $base_schema_namespace);
 
-        foreach($schemas as $schema){
-            if($schema->type !== Schema::TYPE_OBJECT){
+        foreach ($schemas as $schema) {
+            if ($schema->type !== Schema::TYPE_OBJECT) {
                 continue;
             }
 
@@ -125,12 +129,13 @@ class Generator {
     }
 
 
-    private function writeClass($class_name, Node $node){
+    private function writeClass($class_name, Node $node)
+    {
 
         $filename = sprintf('%s%s%s.php', $this->output_dir, DIRECTORY_SEPARATOR, strtr($class_name, ['\\' => DIRECTORY_SEPARATOR]));
         $file_info = pathinfo($filename);
 
-        if(!file_exists($file_info['dirname'])){
+        if (!file_exists($file_info['dirname'])) {
             mkdir($file_info['dirname'], 0777, true);
         }
 
@@ -147,7 +152,8 @@ class Generator {
      * @param Schema $schema
      * @return \PhpParser\Node
      */
-    private function buildModel(Schema $schema) {
+    private function buildModel(Schema $schema)
+    {
 
         $default_values = [];
         $class_resolver = new ClassResolver($this->base_namespace);
@@ -158,16 +164,16 @@ class Generator {
 
         $class = $this->builder_factory->class($class_resolver->getClassName($fq_model_class))->extend($class_resolver->getClassName($fq_base_class));
 
-        if(!empty($schema->description)){
+        if (!empty($schema->description)) {
             $class->setDocComment($this->formatDocComment([$schema->description]));
         }
 
         $property_hints = [];
         $property_enums = [];
-        foreach($schema->getProperties() as $property_name => $child_schema){
+        foreach ($schema->getProperties() as $property_name => $child_schema) {
 
             //Actual classes that will be used in method type hinting
-            $hintable_classes = array_map(function($class_name) use($class_resolver){
+            $hintable_classes = array_map(function ($class_name) use ($class_resolver) {
                 $fq_class = $class_resolver->addClass($class_name);
                 return $class_resolver->getClassAlias($fq_class);
             }, $child_schema->getHintableClasses());
@@ -176,13 +182,13 @@ class Generator {
             $property_hints[$property_name] = $child_schema->getHintableClasses();
 
             //Append the enums
-            if(!empty($child_schema->getEnum())){
+            if (!empty($child_schema->getEnum())) {
                 $property_enums[$property_name] = $child_schema->getEnum();
             }
 
             //All types for the doc block - TODO - clean up
-            $all_types = array_map(function($type) use($class_resolver){
-                if(in_array($type, ['bool', 'int', 'string', 'mixed'])){
+            $all_types = array_map(function ($type) use ($class_resolver) {
+                if (in_array($type, ['bool', 'int', 'string', 'mixed'])) {
                     return $type;
                 }
 
@@ -192,7 +198,7 @@ class Generator {
 
 
             //Build parameter hint
-            if(count($all_types) === 1 && count($hintable_classes) === 1){
+            if (count($all_types) === 1 && count($hintable_classes) === 1) {
                 $parameter_hint = current($hintable_classes);
             } else {
                 $parameter_hint = null;
@@ -201,18 +207,20 @@ class Generator {
             $setter_parameter = $this->buildParameter($property_name, $parameter_hint);
 
             //Create the setters/adders for the properties that are arrays
-            if($child_schema->type === Schema::TYPE_ARRAY){
+            if ($child_schema->type === Schema::TYPE_ARRAY) {
                 $class->addStmt($this->buildArraySetter($property_name, $setter_parameter, $all_types, $child_schema->description));
-                $class->addStmt($this->buildArrayGetter($property_name, $this->sanitisePropertyName($property_name), $all_types, $child_schema->description));
+                $class->addStmt($this->buildArrayGetter($property_name, $this->sanitisePropertyName($property_name), $all_types,
+                    $child_schema->description));
 
                 //Create a simple setter (hinted if possible)
             } else {
                 $class->addStmt($this->buildSetter($property_name, $setter_parameter, $all_types, $child_schema->description));
-                $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $all_types, $child_schema->description));
+                $class->addStmt($this->buildGetter($property_name, $this->sanitisePropertyName($property_name), $all_types,
+                    $child_schema->description));
             }
 
             //The isRequired check should possibly go in the parser.
-            if(!empty($child_schema->default) && $schema->isRequired($property_name)){
+            if (!empty($child_schema->default) && $schema->isRequired($property_name)) {
                 $default_values[$property_name] = $child_schema->default;
             }
 
@@ -238,7 +246,7 @@ class Generator {
             ->setDocComment($this->formatDocComment(['Properties and types', '@var array'])));
 
 
-        if($schema->additional_properties instanceof Schema){
+        if ($schema->additional_properties instanceof Schema) {
             $additional_properties = $schema->additional_properties->getHintableClasses();
         } else {
             $additional_properties = $schema->additional_properties;
@@ -250,7 +258,7 @@ class Generator {
             ->setDefault($additional_properties)
             ->setDocComment($this->formatDocComment(['Allowed additional properties', '@var array'])));
 
-        $parsed_pattern_props = array_map(function(Schema $child_schema){
+        $parsed_pattern_props = array_map(function (Schema $child_schema) {
             return $child_schema->getHintableClasses();
         }, $schema->pattern_properties);
 
@@ -262,10 +270,10 @@ class Generator {
             ->setDocComment($this->formatDocComment(['Array to store any allowed pattern properties', '@var array'])));
 
 
-        foreach($class_resolver->getForeignClasses($fq_model_class) as $fq_class){
+        foreach ($class_resolver->getForeignClasses($fq_model_class) as $fq_class) {
             $use = $this->builder_factory->use($fq_class);
 
-            if(null !== $alias = $class_resolver->getClassAlias($fq_class)){
+            if (null !== $alias = $class_resolver->getClassAlias($fq_class)) {
                 $use->as($alias);
             }
 
@@ -283,13 +291,14 @@ class Generator {
      * @param null $type_hint
      * @return Param
      */
-    private function buildParameter($property_name, $type_hint = null){
+    private function buildParameter($property_name, $type_hint = null)
+    {
 
         $property_name = $this->sanitisePropertyName($property_name);
 
         $parameter = $this->builder_factory->param($property_name);
 
-        if($type_hint !== null){
+        if ($type_hint !== null) {
             $parameter->setTypeHint($type_hint);
         }
 
@@ -305,7 +314,8 @@ class Generator {
      * @param string|null $description
      * @return Method
      */
-    private function buildArraySetter($data_index, Param $parameter, $types, $description = null) {
+    private function buildArraySetter($data_index, Param $parameter, $types, $description = null)
+    {
 
         $parameter_name = $parameter->getNode()->name;
         $method_name = sprintf('add%s', $this->inflector->singularize($this->inflector->camelize($parameter_name)));
@@ -327,11 +337,11 @@ class Generator {
         $setter->addStmt(new Stmt\Return_(new Expr\Variable('this')));
 
         //Doc comments
-        if(!empty($description)){
+        if (!empty($description)) {
             $setter_lines[] = $description;
         }
 
-        $setter_lines[] = sprintf('@param %s $%s',  implode("|", $types), $parameter_name);
+        $setter_lines[] = sprintf('@param %s $%s', implode("|", $types), $parameter_name);
         $setter_lines[] = '@return $this';
 
         $setter->setDocComment($this->formatDocComment($setter_lines));
@@ -346,7 +356,8 @@ class Generator {
      * @param string|null $description
      * @return Method
      */
-    private function buildSetter($data_index, Param $parameter, $types, $description = null) {
+    private function buildSetter($data_index, Param $parameter, $types, $description = null)
+    {
 
         $parameter_name = $parameter->getNode()->name;
         $method_name = sprintf('set%s', $this->inflector->camelize($parameter_name));
@@ -369,7 +380,7 @@ class Generator {
 
 
         //Doc comments
-        if(!empty($description)){
+        if (!empty($description)) {
             $setter_lines[] = $description;
         }
 
@@ -387,7 +398,8 @@ class Generator {
      * @param string|null $description
      * @return Method
      */
-    private function buildGetter($data_index, $property_name, $types, $description = null) {
+    private function buildGetter($data_index, $property_name, $types, $description = null)
+    {
 
         $getter = $this->builder_factory->method(sprintf('get%s', $this->inflector->camelize($property_name)))->makePublic();
 
@@ -404,11 +416,11 @@ class Generator {
         );
 
         //Doc comments
-        if(!empty($description)){
+        if (!empty($description)) {
             $getter_lines[] = $description;
         }
 
-        $getter_lines[] = sprintf('@return %s',  implode("|", $types));
+        $getter_lines[] = sprintf('@return %s', implode("|", $types));
 
         $getter->setDocComment($this->formatDocComment($getter_lines));
 
@@ -426,16 +438,17 @@ class Generator {
      *
      * @return Method
      */
-    private function buildArrayGetter($data_index, $property_name, $types, $description) {
+    private function buildArrayGetter($data_index, $property_name, $types, $description)
+    {
 
         $getter = $this->buildGetter($data_index, $property_name, $types, $description);
 
         //Doc comments
-        if(!empty($description)){
+        if (!empty($description)) {
             $getter_lines[] = $description;
         }
 
-        $getter_lines[] = sprintf('@return %s[]',  implode("|", $types));
+        $getter_lines[] = sprintf('@return %s[]', implode("|", $types));
 
         $getter->setDocComment($this->formatDocComment($getter_lines));
 
@@ -444,16 +457,18 @@ class Generator {
 
 
     /**
-     * Format an array into a doccomment
+     * Format an array into a doc comment
      *
      * @param $lines
      * @return string
      */
-    public static function formatDocComment($lines){
+    public static function formatDocComment($lines)
+    {
         return sprintf("/**\n * %s\n */", implode("\n * ", $lines));
     }
 
-    private function sanitisePropertyName($name) {
+    private function sanitisePropertyName($name)
+    {
         return preg_replace('/(^[^a-z]|[^a-z0-9_\-])/i', '', $name);
     }
 
